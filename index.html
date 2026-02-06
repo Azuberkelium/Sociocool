@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sociocool!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Fredoka', sans-serif; touch-action: manipulation; background-color: #f3f4f6; overflow-x: hidden; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .screen { display: none; min-height: 100vh; animation: fadeIn 0.3s ease-in-out; padding-bottom: 120px; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .btn-bounce:active { transform: scale(0.95); transition: transform 0.1s; }
+        .level-node.locked { filter: grayscale(100%); opacity: 0.6; pointer-events: none; }
+        .confetti { position: fixed; width: 10px; height: 10px; background-color: #f00; animation: fall linear forwards; z-index: 100; pointer-events: none; }
+        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+        .gold-border { border-color: #fbbf24 !important; box-shadow: 0 0 15px rgba(251, 191, 36, 0.5); }
+        .gold-icon { color: #fbbf24 !important; background-color: #fffbeb !important; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 15px; border-radius: 10px; background: #d1d5db; outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: 4px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        
+        #focus-bar { transition: width 0.1s linear; }
+        
+        .mood-quadrant { transition: transform 0.2s; }
+        .mood-quadrant:active { transform: scale(0.95); }
+        .breathing-circle { animation: breathe 8s infinite ease-in-out; }
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            40% { transform: scale(1.5); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 1; }
+            90% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .theme-blue { --bg-primary: #3b82f6; --bg-secondary: #dbeafe; }
+    </style>
+</head>
+<body class="theme-blue bg-[var(--bg-secondary)] text-gray-800 transition-colors duration-500">
+
+    <!-- HEADER -->
+    <div class="fixed top-0 w-full bg-white shadow-lg z-50 p-2 flex justify-between items-center h-16">
+        <div class="flex items-center gap-1 pl-2">
+            <span class="text-2xl animate-pulse">❤️</span><span id="livesDisplay" class="font-bold text-xl text-gray-700">3</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-full border border-yellow-200"><span class="text-sm">🪙</span><span id="coinsDisplay" class="font-bold text-xs text-yellow-800">0</span></div>
+            <div class="flex items-center gap-1 bg-purple-100 px-2 py-1 rounded-full border border-purple-200"><span class="text-sm">💎</span><span id="gemsDisplay" class="font-bold text-xs text-purple-800">0</span></div>
+            <div class="flex items-center gap-1 bg-orange-100 px-2 py-1 rounded-full border border-orange-200"><span class="text-sm">🔥</span><span id="streakDisplay" class="font-bold text-xs text-orange-800">0</span></div>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="https://skelliumgames.netlify.app" target="_blank" class="text-blue-500 text-xs font-bold border border-blue-200 p-1 rounded hover:bg-blue-50">More Games</a>
+            <button onclick="showTutorial()" class="bg-blue-100 text-blue-500 p-2 rounded-full w-8 h-8 flex items-center justify-center hover:bg-blue-200 shadow-sm"><i class="fas fa-question"></i></button>
+            <button onclick="toggleTTS()" id="ttsBtn" class="text-gray-400 p-2"><i class="fas fa-volume-mute text-lg"></i></button>
+            <button onclick="toggleMenu()" class="text-gray-600 p-2"><i class="fas fa-bars text-xl"></i></button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="app" class="pt-20 px-4 max-w-md mx-auto relative">
+
+        <!-- SCREEN: SETUP (Avatar) -->
+        <div id="screen-setup" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-[var(--bg-primary)]">Who are you?</h1>
+            <div class="bg-white p-6 rounded-2xl shadow-lg text-center">
+                <div id="avatarPreview" class="w-24 h-24 rounded-full bg-blue-100 mx-auto mb-4 flex items-center justify-center text-5xl border-4 border-blue-200">😀</div>
+                <input type="text" id="usernameInput" placeholder="Your Name" class="w-full border-2 border-gray-200 rounded-xl p-3 mb-4 text-center font-bold text-lg focus:border-[var(--bg-primary)] outline-none">
+                
+                <p class="mb-2 font-bold text-gray-500">Pick your look:</p>
+                <div class="flex justify-center gap-3 mb-6 flex-wrap">
+                    <button onclick="setAvatar('😀')" class="text-3xl p-2 bg-gray-100 rounded-full hover:bg-blue-100 transition">😀</button>
+                    <button onclick="setAvatar('😎')" class="text-3xl p-2 bg-gray-100 rounded-full hover:bg-blue-100 transition">😎</button>
+                    <button onclick="setAvatar('🤓')" class="text-3xl p-2 bg-gray-100 rounded-full hover:bg-blue-100 transition">🤓</button>
+                    <button onclick="setAvatar('🤠')" class="text-3xl p-2 bg-gray-100 rounded-full hover:bg-blue-100 transition">🤠</button>
+                    <button onclick="setAvatar('🤖')" class="text-3xl p-2 bg-gray-100 rounded-full hover:bg-blue-100 transition">🤖</button>
+                </div>
+                <button onclick="finishSetup()" class="w-full bg-[var(--bg-primary)] text-white py-3 rounded-xl font-bold shadow-lg btn-bounce">Let's Go!</button>
+            </div>
+        </div>
+
+        <!-- SCREEN: MAP -->
+        <div id="screen-map" class="screen active">
+            <div class="flex justify-center items-center gap-2 mb-4 bg-white p-2 rounded-full shadow-sm mx-auto w-fit px-6">
+                <div id="userAvatarDisplay" class="text-2xl"></div>
+                <h1 id="welcomeText" class="text-xl font-bold text-[var(--bg-primary)]">Sociocool!</h1>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                 <button onclick="startBattle()" class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white p-3 rounded-xl shadow-lg btn-bounce flex flex-col items-center">
+                    <i class="fas fa-comments text-2xl mb-1"></i>
+                    <span class="text-xs font-bold mt-1">Battle Mode</span>
+                </button>
+                <button onclick="startMiniGame()" id="btnMiniGame" class="bg-gradient-to-r from-teal-400 to-green-500 text-white p-3 rounded-xl shadow-lg btn-bounce flex flex-col items-center relative">
+                    <i class="fas fa-eye text-2xl mb-1"></i>
+                    <span class="text-xs font-bold mt-1">Focus Hero</span>
+                    <div id="lockMiniGame" class="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center"><i class="fas fa-lock text-white"></i></div>
+                </button>
+            </div>
+
+            <div class="flex flex-col items-center space-y-4" id="levelMap"></div>
+        </div>
+
+        <!-- SCREEN: MOOD WHEEL -->
+        <div id="screen-mood" class="screen">
+            <h2 class="text-2xl font-bold text-center mb-2 text-[var(--bg-primary)]">How are you feeling?</h2>
+            <p class="text-xs text-center text-gray-500 mb-6">Tap a color to move your face!</p>
+            <div class="relative w-64 h-64 mx-auto mb-8 select-none">
+                <div onclick="setMood('red')" class="mood-quadrant absolute top-0 left-0 w-32 h-32 bg-red-400 rounded-tl-full flex items-center justify-center cursor-pointer border-r-2 border-b-2 border-white/20 shadow-sm active:bg-red-500">
+                    <span class="text-2xl transform -translate-x-2 -translate-y-2 text-white font-bold">😡</span>
+                </div>
+                <div onclick="setMood('yellow')" class="mood-quadrant absolute top-0 right-0 w-32 h-32 bg-yellow-400 rounded-tr-full flex items-center justify-center cursor-pointer border-l-2 border-b-2 border-white/20 shadow-sm active:bg-yellow-500">
+                    <span class="text-2xl transform translate-x-2 -translate-y-2 text-white font-bold">🤪</span>
+                </div>
+                <div onclick="setMood('blue')" class="mood-quadrant absolute bottom-0 left-0 w-32 h-32 bg-blue-400 rounded-bl-full flex items-center justify-center cursor-pointer border-r-2 border-t-2 border-white/20 shadow-sm active:bg-blue-500">
+                    <span class="text-2xl transform -translate-x-2 translate-y-2 text-white font-bold">😢</span>
+                </div>
+                <div onclick="setMood('green')" class="mood-quadrant absolute bottom-0 right-0 w-32 h-32 bg-green-400 rounded-br-full flex items-center justify-center cursor-pointer border-l-2 border-t-2 border-white/20 shadow-sm active:bg-green-500">
+                    <span class="text-2xl transform translate-x-2 translate-y-2 text-white font-bold">😌</span>
+                </div>
+                <div id="moodAvatar" class="absolute top-1/2 left-1/2 w-16 h-16 bg-white rounded-full shadow-lg transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-3xl border-4 border-white transition-all duration-300 pointer-events-none z-10">😀</div>
+            </div>
+            <div id="moodFeedback" class="bg-white p-6 rounded-2xl shadow-lg text-center hidden">
+                <h3 id="moodTitle" class="text-xl font-bold mb-2">Feeling...</h3>
+                <p id="moodText" class="text-gray-600 mb-4 text-sm font-bold">All emotions are amazing and perfect!</p>
+                <div class="bg-blue-50 p-3 rounded-lg text-sm text-gray-700 italic mb-4 border-l-4 border-blue-400 text-left">
+                    <i class="fas fa-tools text-blue-400 mr-2"></i><span class="font-bold">Tool: </span><span id="moodTip">Tip goes here.</span>
+                </div>
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="startBreathing()" class="w-full bg-blue-100 text-blue-600 py-3 rounded-xl font-bold hover:bg-blue-200 transition btn-bounce"><i class="fas fa-wind mr-2"></i> Take a Breath</button>
+                    <button onclick="showScreen('screen-map')" class="w-full bg-green-100 text-green-600 py-3 rounded-xl font-bold hover:bg-green-200 transition btn-bounce"><i class="fas fa-gamepad mr-2"></i> Play Games</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BREATHING OVERLAY -->
+        <div id="breathingOverlay" class="fixed inset-0 bg-blue-500/95 z-[100] hidden flex-col items-center justify-center text-white">
+            <h2 class="text-3xl font-bold mb-8">Relax...</h2>
+            <div class="relative w-64 h-64 flex items-center justify-center">
+                <div class="breathing-circle w-32 h-32 bg-white rounded-full opacity-50 absolute"></div>
+                <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center text-blue-500 text-4xl shadow-lg relative z-10"><i class="fas fa-lungs"></i></div>
+            </div>
+            <p class="mt-8 text-xl font-light animate-pulse">Inhale... Hold... Exhale...</p>
+            <button onclick="stopBreathing()" class="mt-12 border-2 border-white text-white px-6 py-2 rounded-full font-bold hover:bg-white hover:text-blue-500 transition btn-bounce">I feel better</button>
+        </div>
+
+        <!-- SCREEN: QUIZ -->
+        <div id="screen-quiz" class="screen">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="quitLevel()" class="text-gray-400 font-bold text-sm hover:text-red-500"><i class="fas fa-times"></i> Quit</button>
+                <div class="text-sm font-bold text-[var(--bg-primary)]" id="levelProgress">1/5</div>
+            </div>
+            
+            <!-- LIFELINES RESTORED HERE -->
+            <div class="flex justify-center gap-3 mb-6">
+                <button onclick="useLifeline('5050')" id="btn-5050" class="relative flex flex-col items-center gap-1 text-xs font-bold text-blue-600 bg-blue-100 p-2 rounded-lg w-20 btn-bounce transition shadow-sm border border-blue-200">
+                    <div class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] border-2 border-white shadow-sm" id="qty-5050">0</div>
+                    <i class="fas fa-cut text-lg"></i><span>50/50</span>
+                </button>
+                <button onclick="useLifeline('freehit')" id="btn-freehit" class="relative flex flex-col items-center gap-1 text-xs font-bold text-purple-600 bg-purple-100 p-2 rounded-lg w-20 btn-bounce transition shadow-sm border border-purple-200">
+                    <div class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] border-2 border-white shadow-sm" id="qty-freehit">0</div>
+                    <i class="fas fa-magic text-lg"></i><span>Free Hit</span>
+                </button>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-md border-b-4 border-gray-200 mb-6 relative">
+                <button onclick="repeatTTS()" class="absolute top-2 right-2 text-gray-300 hover:text-[var(--bg-primary)] p-2"><i class="fas fa-volume-up"></i></button>
+                <div id="questionTag" class="text-[10px] font-bold text-[var(--bg-primary)] uppercase tracking-wide mb-1">Topic</div>
+                <h2 id="questionText" class="text-xl font-bold text-gray-800 leading-relaxed">Loading...</h2>
+            </div>
+            <div id="quizContent" class="space-y-4"></div>
+        </div>
+
+        <!-- SCREEN: BATTLE MODE -->
+        <div id="screen-battle" class="screen">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="quitBattle()" class="text-gray-400 font-bold hover:text-red-500"><i class="fas fa-arrow-left"></i> Exit</button>
+                <span class="font-bold text-purple-600">Conversation Battle</span>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-lg flex-1 flex flex-col h-[60vh]">
+                <div id="battleLog" class="flex-1 space-y-3 mb-4 overflow-y-auto p-2 border border-gray-100 rounded-lg bg-gray-50"></div>
+                <div id="battleOptions" class="grid grid-cols-1 gap-2 mt-auto"></div>
+            </div>
+        </div>
+
+        <!-- SCREEN: MINI GAME -->
+        <div id="screen-eye-game" class="screen">
+            <div class="text-center mb-4">
+                <h2 class="text-2xl font-bold text-teal-600">Focus Hero</h2>
+                <p class="text-sm text-gray-500">Keep the slider aligned with the eyes!</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg relative h-[300px] flex flex-col items-center justify-center overflow-hidden">
+                <div class="absolute top-4 left-4 right-4 h-4 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
+                    <div id="focus-bar" class="h-full bg-teal-500 w-1/2"></div>
+                </div>
+                <div class="w-full h-12 bg-gray-100 rounded-full relative mt-8 border-2 border-gray-300">
+                    <div id="eyeTarget" class="absolute top-0 h-12 w-12 flex items-center justify-center text-3xl transition-transform duration-75">👀</div>
+                    <div id="playerFrame" class="absolute top-0 h-12 w-16 border-4 border-teal-500 rounded-xl pointer-events-none transform -translate-x-1/2 left-0 box-border"></div>
+                </div>
+                <input type="range" id="eyeSlider" min="0" max="100" value="50" class="mt-10 w-full cursor-pointer">
+                <div id="eyeGameOverlay" class="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-10">
+                    <button onclick="initEyeGame()" class="bg-teal-500 text-white px-8 py-3 rounded-xl font-bold text-xl shadow-lg btn-bounce">Start Focus</button>
+                </div>
+            </div>
+            <button onclick="quitMiniGame()" class="mt-6 w-full text-gray-400 font-bold hover:text-red-500">Exit Game</button>
+        </div>
+
+        <!-- SCREEN: LIBRARY -->
+        <div id="screen-library" class="screen">
+            <div class="flex justify-center gap-4 mb-6">
+                <button onclick="switchLibraryTab('theorists')" class="px-4 py-2 bg-[var(--bg-primary)] text-white rounded-full font-bold shadow-md">Theorists</button>
+                <button onclick="switchLibraryTab('people')" class="px-4 py-2 bg-white text-gray-600 rounded-full font-bold shadow-sm">Cool People</button>
+            </div>
+            <div id="tab-theorists" class="grid grid-cols-2 gap-4"></div>
+            <div id="tab-people" class="hidden grid grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- SCREEN: SHOP -->
+        <div id="screen-shop" class="screen">
+            <h2 class="text-2xl font-bold text-center mb-2 text-orange-500">Shop</h2>
+            <div id="dailyGiftSection" class="bg-gradient-to-r from-yellow-300 to-orange-400 p-4 rounded-xl shadow-lg mb-6 text-white relative overflow-hidden border-2 border-white ring-2 ring-yellow-200">
+                <div class="relative z-10 flex justify-between items-center">
+                    <div><h3 class="font-bold text-lg"><i class="fas fa-gift mr-2"></i>Daily Gift</h3><p class="text-xs opacity-90">Get a free lifeline!</p></div>
+                    <button id="btnDailyGift" onclick="claimDailyGift()" class="bg-white text-orange-500 px-4 py-2 rounded-full font-bold shadow-md btn-bounce">Claim</button>
+                </div>
+            </div>
+             <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-white p-3 rounded-xl shadow-sm border text-center">
+                    <div class="font-bold text-sm mb-1 text-gray-700">50/50</div>
+                    <button onclick="buyItem('5050', 50)" class="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full font-bold text-xs w-full shadow-sm btn-bounce">50 🪙</button>
+                </div>
+                 <div class="bg-white p-3 rounded-xl shadow-sm border text-center">
+                    <div class="font-bold text-sm mb-1 text-gray-700">Free Hit</div>
+                    <button onclick="buyItem('freehit', 100)" class="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full font-bold text-xs w-full shadow-sm btn-bounce">100 🪙</button>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border mb-3 flex justify-between items-center">
+                <div class="flex items-center gap-2"><span class="text-2xl">❤️</span><span class="font-bold text-gray-700">Extra Life</span></div>
+                <button onclick="buyItem('life', 200)" class="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-lg font-bold text-sm shadow-sm btn-bounce">200 🪙</button>
+            </div>
+            <h3 class="font-bold text-lg mb-2 pl-2 mt-6 text-gray-700">Sociocool People (50 💎)</h3>
+            <div id="shopPeopleContainer" class="space-y-3 mt-4 pb-4"></div>
+        </div>
+
+        <div id="screen-diary" class="screen">
+            <h2 class="text-2xl font-bold text-center mb-4 text-purple-600">My Missions</h2>
+            <div id="diaryEntries" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around items-center h-16 pb-safe z-40 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+        <button onclick="showScreen('screen-map')" class="nav-btn text-[var(--bg-primary)] flex flex-col items-center w-full active:scale-95 transition"><i class="fas fa-map text-xl mb-1"></i><span class="text-[10px]">Map</span></button>
+        <button onclick="showScreen('screen-library')" class="nav-btn text-gray-400 flex flex-col items-center w-full hover:text-[var(--bg-primary)] active:scale-95 transition"><i class="fas fa-book-open text-xl mb-1"></i><span class="text-[10px]">Library</span></button>
+        <button onclick="showScreen('screen-mood')" class="nav-btn text-gray-400 flex flex-col items-center w-full hover:text-[var(--bg-primary)] active:scale-95 transition"><i class="fas fa-smile text-xl mb-1"></i><span class="text-[10px]">Mood</span></button>
+        <button onclick="showScreen('screen-diary')" class="nav-btn text-gray-400 flex flex-col items-center w-full hover:text-[var(--bg-primary)] active:scale-95 transition"><i class="fas fa-book-journal-whills text-xl mb-1"></i><span class="text-[10px]">Missions</span></button>
+        <button onclick="showScreen('screen-shop')" class="nav-btn text-gray-400 flex flex-col items-center w-full hover:text-[var(--bg-primary)] active:scale-95 transition"><i class="fas fa-store text-xl mb-1"></i><span class="text-[10px]">Shop</span></button>
+    </div>
+
+    <!-- MODALS -->
+    <div id="parentModal" class="fixed inset-0 bg-black/90 z-[90] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6">
+            <h3 class="font-bold text-xl mb-2 text-gray-800">Parent/Teacher Mode</h3>
+            <p class="text-xs text-gray-500 mb-4">Add a mission for the player.</p>
+            <input type="text" id="parentMissionInput" placeholder="e.g. Say hello to the bus driver" class="w-full border p-2 rounded-lg mb-4">
+            <div class="flex gap-2">
+                <button onclick="addParentMission()" class="flex-1 bg-green-500 text-white py-2 rounded-lg font-bold">Add</button>
+                <button onclick="closeModal('parentModal')" class="flex-1 bg-gray-200 text-gray-600 py-2 rounded-lg">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedbackModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl text-center transform transition-all scale-100 relative">
+            <!-- Combo Badge -->
+            <div id="comboBadge" class="hidden absolute -top-6 right-0 bg-orange-500 text-white font-bold px-3 py-1 rounded-full shadow-lg border-2 border-white animate-bounce text-sm">
+                🔥 COMBO!
+            </div>
+            <div id="feedbackIcon" class="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg"></div>
+            <h3 id="feedbackTitle" class="text-2xl font-bold mb-2">Title</h3>
+            <p id="feedbackText" class="text-gray-600 mb-4">Explanation.</p>
+            <div class="bg-gray-50 p-3 rounded-lg text-sm text-gray-500 italic mb-6 border-l-4 border-gray-300 text-left"><i class="fas fa-lightbulb text-yellow-500 mr-2"></i><span id="feedbackContext">Context.</span></div>
+            <button onclick="nextQuestion()" class="w-full bg-[var(--bg-primary)] text-white py-3 rounded-xl font-bold text-lg shadow-lg btn-bounce">Continue</button>
+        </div>
+    </div>
+
+    <div id="friendEventModal" class="fixed inset-0 bg-black/80 z-[80] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
+            <div class="w-16 h-16 bg-blue-100 rounded-full mx-auto flex items-center justify-center text-3xl mb-4">🤝</div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Friend Needs Help!</h3>
+            <p id="friendEventText" class="text-gray-600 text-sm mb-6"></p>
+            <div class="flex gap-3">
+                <button onclick="closeModal('friendEventModal')" class="flex-1 bg-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-300">No</button>
+                <button onclick="acceptFriendLoan()" class="flex-1 bg-blue-500 text-white py-3 rounded-xl font-bold shadow-lg btn-bounce">Yes!</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tutorialModal" class="fixed inset-0 bg-black/80 z-[70] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 relative">
+            <button onclick="closeModal('tutorialModal')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+            <h2 class="text-2xl font-bold text-[var(--bg-primary)] mb-4 text-center">How to Play</h2>
+            <div class="space-y-4 text-sm text-gray-600">
+                <p class="flex items-center gap-2"><span class="text-lg">🪙</span> <strong>Coins:</strong> Earned by answering correctly.</p>
+                <p class="flex items-center gap-2"><span class="text-lg">💎</span> <strong>Gems:</strong> Earned by mastering levels or Missions.</p>
+                <p class="flex items-center gap-2"><span class="text-lg">❤️</span> <strong>Lives:</strong> Lost on wrong answers.</p>
+                <p><strong>Unlock Levels:</strong> Get 10 correct answers in a level to unlock the next.</p>
+            </div>
+            <button onclick="closeModal('tutorialModal')" class="w-full bg-[var(--bg-primary)] text-white py-3 rounded-xl font-bold text-lg shadow-lg btn-bounce mt-6">Got it!</button>
+        </div>
+    </div>
+    
+    <div id="unlockModal" class="fixed inset-0 bg-black/80 z-[60] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
+            <h2 class="text-xl font-bold text-orange-500 mb-2">NEW THEORIST!</h2>
+            <img id="unlockImage" src="" class="w-24 h-24 mx-auto rounded-full border-4 border-orange-300 mb-4 bg-gray-200 object-cover">
+            <h3 id="unlockName" class="text-2xl font-bold text-gray-800">Name</h3>
+            <p id="unlockConcept" class="text-sm font-bold text-gray-600 mb-4">Concept</p>
+            <p id="unlockDesc" class="text-xs text-gray-500 mb-6">Description</p>
+            <button onclick="closeModal('unlockModal')" class="w-full bg-orange-500 text-white py-2 rounded-xl font-bold">Awesome!</button>
+        </div>
+    </div>
+
+    <script>
+        const sfx = {
+            ctx: new (window.AudioContext || window.webkitAudioContext)(),
+            play(type) {
+                if(this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                const now = this.ctx.currentTime;
+                if(type === 'correct') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(500, now); osc.frequency.exponentialRampToValueAtTime(1000, now+0.1);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now+0.3);
+                    osc.start(now); osc.stop(now+0.3);
+                } else if(type === 'wrong') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(100, now+0.3);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now+0.3);
+                    osc.start(now); osc.stop(now+0.3);
+                } else if(type === 'click') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now+0.05);
+                    osc.start(now); osc.stop(now+0.05);
+                }
+            }
+        };
+
+        let ttsEnabled = false;
+        let currentTTSString = "";
+
+        function toggleTTS() {
+            ttsEnabled = !ttsEnabled;
+            document.getElementById('ttsBtn').innerHTML = ttsEnabled ? '<i class="fas fa-volume-up text-blue-500 text-lg"></i>' : '<i class="fas fa-volume-mute text-lg"></i>';
+            if(ttsEnabled) speak("Voice on.");
+        }
+        function speak(text) {
+            if(!ttsEnabled) return;
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 0.9;
+            window.speechSynthesis.speak(u);
+        }
+        function repeatTTS() { 
+            if(currentTTSString) speak(currentTTSString); 
+        }
+
+        const levels = [
+            { id: 1, title: 'Greetings', icon: 'fa-hand-sparkles', desc: 'Saying hello and goodbye.' },
+            { id: 2, title: 'Conversation', icon: 'fa-comments', desc: 'Taking turns.' },
+            { id: 3, title: 'Personal Space', icon: 'fa-user-shield', desc: 'Comfortable distances.' },
+            { id: 4, title: 'Eating', icon: 'fa-utensils', desc: 'Table manners.' },
+            { id: 5, title: 'Safety', icon: 'fa-traffic-light', desc: 'Strangers & Public.' },
+            { id: 6, title: 'Classroom', icon: 'fa-chalkboard-user', desc: 'School rules.' }
+        ];
+        
+        const theorists = [
+            { id: 'goffman', name: 'Erving Goffman', concept: 'Dramaturgy', desc: 'Life is a stage.' },
+            { id: 'bourdieu', name: 'Pierre Bourdieu', concept: 'Habitus', desc: 'Habits are learned.' },
+            { id: 'douglas', name: 'Mary Douglas', concept: 'Purity', desc: 'Rules create order.' },
+            { id: 'durkheim', name: 'Émile Durkheim', concept: 'Social Facts', desc: 'Norms are invisible forces that exist outside us but control how we act.' },
+            { id: 'mead', name: 'George Herbert Mead', concept: 'Generalized Other', desc: 'We imagine what "society" thinks to help us behave even when alone.' },
+            { id: 'foucault', name: 'Michel Foucault', concept: 'Surveillance', desc: 'We follow rules because we feel like we might be watched, policing ourselves.' },
+            { id: 'cooley', name: 'Charles Cooley', concept: 'Looking Glass Self', desc: 'We build our identity based on how we think others see us.' },
+            { id: 'becker', name: 'Howard Becker', concept: 'Labeling Theory', desc: 'Behavior is only "deviant" because society labels it that way.' },
+            { id: 'simmel', name: 'Georg Simmel', concept: 'The Stranger', desc: 'How being new to a group gives you a unique, objective perspective.' }
+        ];
+
+        const coolPeopleData = [
+            { id: 'newton', name: 'Isaac Newton', desc: 'Hardly spoke, obsessed with alchemy. Discovered gravity!', cost: 50, icon: 'fas fa-apple-alt' },
+            { id: 'einstein', name: 'Albert Einstein', desc: 'Hated socks, spoke late. Changed physics forever.', cost: 50, icon: 'fas fa-atom' },
+            { id: 'tesla', name: 'Nikola Tesla', desc: 'Loved the number 3, saw inventions in his head. Lit up the world.', cost: 50, icon: 'fas fa-bolt' },
+            { id: 'darwin', name: 'Charles Darwin', desc: 'Collected beetles obsessively. Explained how life evolves.', cost: 50, icon: 'fas fa-frog' },
+            { id: 'mozart', name: 'Wolfgang Mozart', desc: 'Moving hands constantly, sensitive ears. Wrote amazing music.', cost: 50, icon: 'fas fa-music' },
+            { id: 'dickinson', name: 'Emily Dickinson', desc: 'Stayed in her room, wore white. Wrote powerful poetry.', cost: 50, icon: 'fas fa-feather' },
+            { id: 'michelangelo', name: 'Michelangelo', desc: 'Worked for days without sleep. Painted the Sistine Chapel.', cost: 50, icon: 'fas fa-palette' },
+            { id: 'warhol', name: 'Andy Warhol', desc: 'Loved repeating soup cans. Changed modern art.', cost: 50, icon: 'fas fa-camera' },
+            { id: 'turing', name: 'Alan Turing', desc: 'Chained mug to radiator. Cracked uncrackable codes.', cost: 50, icon: 'fas fa-laptop-code' },
+            { id: 'grandin', name: 'Temple Grandin', desc: 'Thinks in pictures, not words. Improved animal welfare.', cost: 50, icon: 'fas fa-cow' },
+            { id: 'thunberg', name: 'Greta Thunberg', desc: 'Laser focus on climate. Started a global movement.', cost: 50, icon: 'fas fa-leaf' },
+            { id: 'tajiri', name: 'Satoshi Tajiri', desc: 'Obsessed with bug collecting. Created Pokemon!', cost: 50, icon: 'fas fa-bug' },
+            { id: 'hannah', name: 'Daryl Hannah', desc: 'Rocks back and forth to stay calm. Starred in Splash.', cost: 50, icon: 'fas fa-film' },
+            { id: 'hopkins', name: 'Anthony Hopkins', desc: 'Memorizes lines 200 times. Won Oscars.', cost: 50, icon: 'fas fa-theater-masks' },
+            { id: 'aykroyd', name: 'Dan Aykroyd', desc: 'Obsessed with ghosts and law. Wrote Ghostbusters.', cost: 50, icon: 'fas fa-ghost' },
+            { id: 'gates', name: 'Bill Gates', desc: 'Rocks while thinking. Built Microsoft.', cost: 50, icon: 'fas fa-desktop' },
+            { id: 'biles', name: 'Simone Biles', desc: 'Lots of energy, hyper-focused. Greatest gymnast ever.', cost: 50, icon: 'fas fa-medal' },
+            { id: 'messi', name: 'Lionel Messi', desc: 'Shy, intense focus on the ball. Football legend.', cost: 50, icon: 'fas fa-futbol' },
+            { id: 'carroll', name: 'Lewis Carroll', desc: 'Stammered, loved logic puzzles. Wrote Alice in Wonderland.', cost: 50, icon: 'fas fa-hat-wizard' },
+            { id: 'jefferson', name: 'Thomas Jefferson', desc: 'Hummed constantly, hated dressing up. Wrote Declaration of Independence.', cost: 50, icon: 'fas fa-scroll' }
+        ];
+
+        let questionBank = [
+            // LEVEL 1: GREETINGS (25 Questions)
+            { id: 1001, lvl:1, type:'choice', q:"You see your teacher at the grocery store. What should you do?", ans:2, opts:["Hide behind the cereal.","Run up and hug them tight.","Smile, wave, and say 'Hello'.","Stare at them until they see you."], why:"Acknowledge them politely.", ctx:"Teachers have lives too!" },
+            { id: 1002, lvl:1, type:'choice', q:"Someone holds the door open for you. What should you say?", ans:1, opts:["Walk through silently.","Say 'Thank you'.","Tell them they are doing it wrong.","Stop and dance."], why:"Gratitude is key.", ctx:"Social glue." },
+            { id: 1003, lvl:1, type:'slider', q:"How loud should you say 'Hello' in a library? (0=Silent, 100=Shout)", target: 10, range: 20, why:"Keep it very quiet.", ctx:"Libraries are for reading." },
+            { id: 1004, lvl:1, type:'face', q:"Which face looks happy to see you?", ans:0, opts:["😊","😠","😒","😨"], why:"Smiling means happy.", ctx:"Look at mouth corners." },
+            { id: 1005, lvl:1, type:'choice', q:"A new neighbor moves in next door. What is a nice way to greet them?", ans:2, opts:["Spy on them through the window.","Bark like a dog.","Smile and say 'Hello'.","Throw a rock at their door."], why:"Build trust.", ctx:"First impressions." },
+            { id: 1006, lvl:1, type:'choice', q:"You meet your friend's parent for the first time. What should you do?", ans:0, opts:["Say 'Hello' politely.","Ignore them.","Ask for money.","Run away."], why:"Politeness matters.", ctx:"First impressions count." },
+            { id: 1007, lvl:1, type:'choice', q:"You are leaving a birthday party. What should you say to the host?", ans:1, opts:["Nothing, just leave.","Say 'Thank you for having me'.","Say 'The cake was bad'.","Sneak out the back door."], why:"Gratitude shows respect.", ctx:"Thanking the host is important." },
+            { id: 1008, lvl:1, type:'choice', q:"Someone says 'Hi' to you in the hallway. What is a good response?", ans:0, opts:["Say 'Hi' back.","Scream.","Look at the floor.","Growl at them."], why:"Reciprocity is friendly.", ctx:"A simple 'Hi' works wonders." },
+            { id: 1009, lvl:1, type:'choice', q:"Your friend holds out their fist. What are they doing?", ans:1, opts:["Trying to punch you.","Offering a fist bump.","Showing you a bug.","Asking for money."], why:"It's a friendly greeting.", ctx:"Bump it back gently." },
+            { id: 1010, lvl:1, type:'choice', q:"Someone calls you by the wrong name. What do you say?", ans:2, opts:["Scream at them.","Ignore them forever.","Say 'Actually, my name is...'.","Cry loudly."], why:"Polite correction helps.", ctx:"It's okay to correct them." },
+            { id: 1011, lvl:1, type:'choice', q:"You want to pet a stranger's dog. What should you do first?", ans:1, opts:["Grab the dog's tail.","Ask the owner 'May I pet your dog?'.","Run at the dog screaming.","Kick the dog."], why:"Safety and respect.", ctx:"Always ask first." },
+            { id: 1012, lvl:1, type:'choice', q:"You join a Zoom call for class. What should you do?", ans:0, opts:["Wave and mute your mic.","Scream 'HELLO!'.","Put your nose on the camera.","Fall asleep."], why:"Digital etiquette matters.", ctx:"Mute when not speaking." },
+            { id: 1013, lvl:1, type:'choice', q:"A shopkeeper says 'Good morning'. What do you say?", ans:2, opts:["Nothing.","Grunt loudly.","'Good morning' back.","Run away."], why:"Politeness in public.", ctx:"Acknowledge service workers." },
+            { id: 1014, lvl:1, type:'choice', q:"You enter an elevator with other people. What do you do?", ans:0, opts:["Nod and face the door.","Fart loudly.","Stare at the other people.","Face the back wall."], why:"Elevator etiquette.", ctx:"Give others space." },
+            { id: 1015, lvl:1, type:'choice', q:"You meet the Queen of England. What do you do?", ans:2, opts:["High five her.","Ask for a selfie.","Follow the rules or bow politely.","Tickle her."], why:"Context dictates formality.", ctx:"Respect traditions." },
+            { id: 1016, lvl:1, type:'choice', q:"Your friend's pet fish died. What do you say?", ans:1, opts:["'Can I have the tank?'","'I am sorry about your fish.'","Laugh at them.","Ignore it."], why:"Sympathy is kind.", ctx:"Acknowledge their loss." },
+            { id: 1017, lvl:1, type:'choice', q:"You arrive at a birthday party. Who should you find first?", ans:0, opts:["The birthday person.","The cake.","A place to sleep.","The exit."], why:"Honor the celebrant.", ctx:"Say Happy Birthday!" },
+            { id: 1018, lvl:1, type:'choice', q:"You are late to class and walk in. What do you do?", ans:2, opts:["Scream 'I'M HERE!'.","Crawl on the floor.","Walk in quietly and sit down.","Slam the door."], why:"Minimize disruption.", ctx:"Be respectful of the lesson." },
+            { id: 1019, lvl:1, type:'choice', q:"Someone offers you a high five but you leave them hanging. What should you do?", ans:1, opts:["Laugh at them.","Say 'Sorry!' and high five them.","Walk away.","Duck."], why:"Don't leave them hanging.", ctx:"It builds connection." },
+            { id: 1020, lvl:1, type:'choice', q:"You get on the bus in the morning. What can you say to the driver?", ans:1, opts:["Stare at them.","'Good morning'.","Sing a song.","Push past them."], why:"Acknowledge people.", ctx:"Drivers start your day." },
+            { id: 1021, lvl:1, type:'choice', q:"You are playing online and a new player joins. What do you say?", ans:0, opts:["'Welcome!' or 'GLHF'.","'You stick'.","Scream into the mic.","Nothing."], why:"Digital sportsmanship.", ctx:"Be welcoming." },
+            { id: 1022, lvl:1, type:'choice', q:"You need to wake up your sibling. How do you do it?", ans:2, opts:["Pour water on them.","Scream in their ear.","Gently shake their shoulder.","Jump on them."], why:"Respect sleep.", ctx:"Startling people isn't nice." },
+            { id: 1023, lvl:1, type:'choice', q:"The doctor enters the room. What do you do?", ans:1, opts:["Hide under the table.","Say 'Hello'.","Show them your tongue.","Scream."], why:"Professional interaction.", ctx:"Be ready to listen." },
+            { id: 1024, lvl:1, type:'choice', q:"Grandma comes to visit. How do you greet her?", ans:0, opts:["Give her a hug (if comfortable).","Scream and run away.","Hide in your room.","Ignore her."], why:"Family affection.", ctx:"Show you care." },
+            { id: 1025, lvl:1, type:'choice', q:"You receive a gift you don't like. What do you say?", ans:1, opts:["'I hate this.'","'Thank you.'","Throw it away.","Cry."], why:"Gratitude for the thought.", ctx:"It's the thought that counts." },
+
+            // LEVEL 2: CONVERSATION (25 Questions)
+            { id: 2001, lvl:2, type:'choice', q:"Your friend is talking about a topic you find boring. What should you do?", ans:1, opts:["Interrupt and talk about your game.","Wait for a pause, acknowledge, then switch topics.","Cover your ears.","Walk away while they are talking."], why:"Reciprocal listening.", ctx:"Wait for pause." },
+            { id: 2002, lvl:2, type:'slider', q:"How much should you talk compared to listening in a conversation? (0=Listen only, 100=Talk only)", target: 50, range: 15, why:"Aim for 50/50 balance.", ctx:"It's like tennis." },
+            { id: 2003, lvl:2, type:'face', q:"Which of these faces looks bored?", ans:2, opts:["😁","😡","🥱","😭"], why:"Yawning means bored.", ctx:"Change topic." },
+            { id: 2004, lvl:2, type:'choice', q:"You want to interrupt someone politely. What do you say?", ans:1, opts:["'HEY YOU!'","'Excuse me, may I say something?'","Push them.","Wave your hands in their face."], why:"Politeness matters.", ctx:"Wait for a breath." },
+            { id: 2005, lvl:2, type:'choice', q:"Someone asks 'How are you?'. What is a standard reply?", ans:0, opts:["'Good thanks, and you?'","A 20-minute story about your toe.","'Why do you ask?'","Silence."], why:"It's a social greeting.", ctx:"Keep it brief." },
+            { id: 2006, lvl:2, type:'choice', q:"You realize you have been talking for 10 minutes straight. What should you do?", ans:1, opts:["Keep talking.","Stop and ask 'What do you think?'","Walk away.","Sing a song."], why:"Share the conversation.", ctx:"Pass the ball back." },
+            { id: 2007, lvl:2, type:'choice', q:"Someone has food stuck in their teeth. What do you do?", ans:2, opts:["Point and laugh.","Shout 'FOOD!'","Whisper it to them quietly.","Ignore it."], why:"Save them embarrassment.", ctx:"Be discreet." },
+            { id: 2008, lvl:2, type:'choice', q:"You disagree with your friend's opinion. What do you say?", ans:2, opts:["'You're stupid.'","Punch them.","'I see it differently.'","Silence."], why:"Respectful disagreement.", ctx:"Attack the idea, not the person." },
+            { id: 2009, lvl:2, type:'choice', q:"Someone gives you a compliment. What do you say?", ans:0, opts:["'Thank you.'","'I know.'","'No I'm not.'","Burp."], why:"Accept it gracefully.", ctx:"Don't deflect." },
+            { id: 2010, lvl:2, type:'choice', q:"You forgot someone's name. What can you do?", ans:1, opts:["Guess 'Bob'.","Politely ask 'Remind me your name?'","Make up a name.","Run away."], why:"Honesty is okay.", ctx:"It happens to everyone." },
+            { id: 2011, lvl:2, type:'choice', q:"You told a joke but nobody laughed. What do you do?", ans:0, opts:["Move on to something else.","Repeat it louder.","Explain why it is funny.","Cry."], why:"Read the room.", ctx:"Not every joke lands." },
+            { id: 2012, lvl:2, type:'choice', q:"Your friend looks sad. What can you say?", ans:2, opts:["Tell a joke.","Ignore them.","'Are you okay?'","Poke them."], why:"Show empathy.", ctx:"Check in on them." },
+            { id: 2013, lvl:2, type:'choice', q:"You are in a group conversation. Who should you look at?", ans:1, opts:["Only one person.","Look around at everyone.","Look at the floor.","Look at the ceiling."], why:"Include everyone.", ctx:"Make eye contact with the group." },
+            { id: 2014, lvl:2, type:'choice', q:"Is it okay to swear at school?", ans:2, opts:["Yes, always.","Only at teachers.","No, usually not.","Only if you whisper."], why:"Context matters.", ctx:"School has rules." },
+            { id: 2015, lvl:2, type:'choice', q:"You just met someone. Should you ask them very personal questions?", ans:1, opts:["Yes, immediately.","No, build trust first.","Never.","Interrogate them."], why:"Respect privacy.", ctx:"Start with small talk." },
+            { id: 2016, lvl:2, type:'choice', q:"You want to end a conversation. What do you say?", ans:0, opts:["'I gotta run, bye!'","Walk away silently.","Stare at them.","Fall asleep."], why:"Signal the end.", ctx:"Don't just ghost them." },
+            { id: 2017, lvl:2, type:'choice', q:"Someone didn't hear what you said. What do you do?", ans:1, opts:["Scream it.","Repeat it clearly and calmly.","Give up.","Insult them."], why:"Clarity helps.", ctx:"Don't get angry." },
+            { id: 2018, lvl:2, type:'choice', q:"Someone tells you a secret. What should you do?", ans:0, opts:["Keep it (unless it's dangerous).","Post it online.","Tell everyone.","Sell it."], why:"Build trust.", ctx:"Trustworthiness is key." },
+            { id: 2019, lvl:2, type:'choice', q:"You hear a rumor about a friend. What should you do?", ans:1, opts:["Spread it.","Stop it and don't spread it.","Add to it.","Laugh."], why:"Be a good friend.", ctx:"Don't participate in gossip." },
+            { id: 2020, lvl:2, type:'choice', q:"You find eye contact hard. Where else can you look?", ans:2, opts:["The floor.","The ceiling.","Their nose or forehead.","Closed eyes."], why:"Adaptation.", ctx:"Looking near the eyes works too." },
+            { id: 2021, lvl:2, type:'choice', q:"There is a long silence in the conversation. Is that okay?", ans:0, opts:["Yes, pauses are normal.","No, panic!","Scream to fill the void.","Leave immediately."], why:"Silence isn't always bad.", ctx:"Take a breath." },
+            { id: 2022, lvl:2, type:'choice', q:"Someone is on their phone while you are talking. How do you feel?", ans:1, opts:["Happy.","Ignored or annoyed.","Excited.","Hungry."], why:"Phone etiquette.", ctx:"It feels disrespectful." },
+            { id: 2023, lvl:2, type:'choice', q:"You want to join a group playing a game. What do you ask?", ans:0, opts:["'Can I play too?'","'Move over!'","Nothing, just jump in.","'This game is boring.'"], why:"Ask for inclusion.", ctx:"Be polite." },
+            { id: 2024, lvl:2, type:'choice', q:"Someone says 'No' to your request. What do you do?", ans:1, opts:["Ask 100 more times.","Accept it and move on.","Scream.","Break something."], why:"Respect boundaries.", ctx:"No means no." },
+            { id: 2025, lvl:2, type:'choice', q:"You are talking about your favorite video game. How long should you talk?", ans:2, opts:["Forever.","Until they fall asleep.","A few minutes, then check if they are interested.","One second."], why:"Check interest.", ctx:"Don't info-dump too long." },
+
+            // LEVEL 3: PERSONAL SPACE (25 Questions)
+            { id: 3001, lvl:3, type:'choice', q:"You want to give your friend a hug. What should you do first?", ans:1, opts:["Run and tackle them.","Ask 'Can I give you a hug?'","Grab their arm.","Sneak up behind them."], why:"Bodily autonomy.", ctx:"Ask every time." },
+            { id: 3002, lvl:3, type:'slider', q:"How far away should you stand when waiting in a line? (0=Touching, 100=Far away)", target: 30, range: 15, why:"Arm's length.", ctx:"Don't breathe on them." },
+            { id: 3003, lvl:3, type:'face', q:"Which face is showing that you are standing too close?", ans:1, opts:["😊","😣","😴","😍"], why:"Grimacing means back off.", ctx:"Read discomfort." },
+            { id: 3004, lvl:3, type:'choice', q:"You sit on a bus with empty seats. Where do you sit?", ans:0, opts:["In an empty seat alone.","Right next to a stranger.","On the floor.","Stand."], why:"Maximize space.", ctx:"Don't crowd if you don't have to." },
+            { id: 3005, lvl:3, type:'choice', q:"Someone bumps into you by accident. What do you say?", ans:0, opts:["'No worries.'","Push them back.","Scream.","Fall down."], why:"Accidents happen.", ctx:"De-escalate the situation." },
+            { id: 3006, lvl:3, type:'choice', q:"You see someone looking at their phone. Should you read their texts?", ans:1, opts:["Yes, read them.","No, look away.","Read them out loud.","Touch the screen."], why:"Privacy bubble.", ctx:"Eyes on your own screen." },
+            { id: 3007, lvl:3, type:'choice', q:"A door is closed. What should you do before entering?", ans:0, opts:["Knock and wait.","Barge in.","Listen at the door.","Kick it open."], why:"Privacy boundary.", ctx:"Wait for 'Come in'." },
+            { id: 3008, lvl:3, type:'choice', q:"You want to use your friend's hairbrush. What do you do?", ans:2, opts:["Take it.","Use it secretly.","Ask if you can borrow it.","Steal it."], why:"Hygiene and property.", ctx:"Germs and ownership." },
+            { id: 3009, lvl:3, type:'choice', q:"You want to sit in the hallway. Where is a good spot?", ans:1, opts:["In the doorway.","Against the wall, out of the way.","In the middle of the hall.","On the stairs."], why:"Traffic flow.", ctx:"Don't be a roadblock." },
+            { id: 3010, lvl:3, type:'choice', q:"You are sharing an armrest at the movies. Who gets it?", ans:0, opts:["Share or keep elbows in.","Claim it aggressively.","Lick it.","Fight for it."], why:"Shared resource.", ctx:"Be considerate." },
+            { id: 3011, lvl:3, type:'choice', q:"Someone has fluffy hair. Can you touch it?", ans:2, opts:["Yes, just touch it.","Pull it.","Only if you ask and they say yes.","Blow on it."], why:"No non-consensual touch.", ctx:"Hands to yourself." },
+            { id: 3012, lvl:3, type:'choice', q:"How close should you stand when talking to someone?", ans:1, opts:["Nose to nose.","Arm's length away.","Across the room.","Back to back."], why:"Breath zone.", ctx:"Too close is threatening." },
+            { id: 3013, lvl:3, type:'choice', q:"You have a big backpack on a crowded bus. What should you do?", ans:0, opts:["Take it off and put it by your feet.","Keep it on and hit people.","Put it on the seat next to you.","Wear it on your front."], why:"Space efficiency.", ctx:"Make room for others." },
+            { id: 3014, lvl:3, type:'choice', q:"Is it okay to hold hands with anyone?", ans:2, opts:["Yes, anyone.","Never.","Only with permission/partners/parents.","Strangers."], why:"Intimacy levels.", ctx:"Context matters." },
+            { id: 3015, lvl:3, type:'choice', q:"A bathroom stall door is open. What should you do?", ans:1, opts:["Walk in.","Knock or check if it's empty.","Yell 'HELLO'.","Run in."], why:"Ultimate privacy.", ctx:"Better safe than sorry." },
+            { id: 3016, lvl:3, type:'choice', q:"You are at a library desk. How much space do you take?", ans:0, opts:["Your half only.","The whole table.","Build a fort.","Sleep on it."], why:"Shared workspace.", ctx:"Keep your stuff contained." },
+            { id: 3017, lvl:3, type:'choice', q:"Someone is crying. Should you hug them immediately?", ans:2, opts:["Yes.","No, stare at them.","Ask 'Do you want a hug?' first.","Take a photo."], why:"Emotional space.", ctx:"Ask before touching." },
+            { id: 3018, lvl:3, type:'choice', q:"Is tickling always fun?", ans:1, opts:["Yes, always.","No, only with consent.","Yes, for strangers.","Yes, while they sleep."], why:"Touching rules.", ctx:"'Stop' means stop immediately." },
+            { id: 3019, lvl:3, type:'choice', q:"You need to cough. What do you do?", ans:0, opts:["Cough into your elbow.","Cough into the air.","Cough on your friend.","Cough into your hand."], why:"Hygiene radius.", ctx:"Germ theory." },
+            { id: 3020, lvl:3, type:'choice', q:"You smell something on someone. Should you sniff them?", ans:2, opts:["Yes, sniff their hair.","Yes, sniff their neck.","No, keep your nose to yourself.","Lick them."], why:"Intrusive behavior.", ctx:"Personal space includes scent." },
+            { id: 3021, lvl:3, type:'choice', q:"You are walking behind someone. What should you do?", ans:1, opts:["Run up to them.","Pass them or keep distance.","Breathe loudly.","Touch their back."], why:"Don't loom.", ctx:"It can feel scary." },
+            { id: 3022, lvl:3, type:'choice', q:"You are wearing headphones. How loud should the music be?", ans:0, opts:["So only you can hear it.","So everyone can hear it.","Maximum volume.","Sing along loudly."], why:"Audio space.", ctx:"Leakage is annoying." },
+            { id: 3023, lvl:3, type:'choice', q:"Someone is sleeping. What should you do?", ans:2, opts:["Draw on their face.","Scream to wake them.","Let them sleep.","Poke them."], why:"Vulnerable state.", ctx:"Do not disturb." },
+            { id: 3024, lvl:3, type:'choice', q:"You want to use a gym machine someone is on. What do you do?", ans:1, opts:["Hover over them.","Wait or ask how many sets left.","Push them off.","Stare at them."], why:"Machine etiquette.", ctx:"Give them space." },
+            { id: 3025, lvl:3, type:'choice', q:"Someone refuses your high five. What do you do?", ans:0, opts:["Lower your hand and smile.","Grab their hand.","Get mad.","Cry."], why:"Rejection happens.", ctx:"Play it cool." },
+
+            // LEVEL 4: EATING (25 Questions)
+            { id: 4001, lvl:4, type:'choice', q:"You are at a friend's house and you don't like the food served. What do you say?", ans:1, opts:["'This is disgusting!'","'No thank you, I'm not hungry.'","Spit it out on the table.","Throw it on the floor."], why:"Polite refusal.", ctx:"Respect host." },
+            { id: 4002, lvl:4, type:'slider', q:"How fast should you eat your meal compared to others? (0=Very slow, 100=Very fast)", target: 40, range: 20, why:"Pace with others.", ctx:"Don't finish first by 10 minutes." },
+            { id: 4003, lvl:4, type:'face', q:"Which face shows that something smells bad?", ans:3, opts:["😋","😐","😮","🤢"], why:"Scrunched nose.", ctx:"Don't say it out loud." },
+            { id: 4004, lvl:4, type:'choice', q:"You need to burp at the dinner table. What do you do?", ans:1, opts:["Burp loudly.","Burp quietly and say 'Excuse me'.","Burp on your sibling.","Hold it forever."], why:"Minimize body noises.", ctx:"It happens, just be polite." },
+            { id: 4005, lvl:4, type:'choice', q:"How should you chew your food?", ans:0, opts:["With your mouth closed.","With your mouth open.","Loudly.","While singing."], why:"Visual grossness.", ctx:"Nobody wants to see your food." },
+            { id: 4006, lvl:4, type:'choice', q:"You need the salt but it is far away. What do you do?", ans:2, opts:["Climb on the table.","Throw something at it.","Ask 'Please pass the salt'.","Grab it."], why:"Personal space/spills.", ctx:"The 'boarding house reach' is rude." },
+            { id: 4007, lvl:4, type:'choice', q:"You are confused about which fork to use. What do you do?", ans:0, opts:["Watch what others do.","Use your hands.","Use none.","Lick the plate."], why:"Social copying.", ctx:"Work from the outside in." },
+            { id: 4008, lvl:4, type:'choice', q:"You are done eating but others are not. What do you do?", ans:1, opts:["Leave the table.","Wait for others or ask to be excused.","Burp loudly.","Sleep."], why:"Communal meal.", ctx:"Stay for the conversation." },
+            { id: 4009, lvl:4, type:'choice', q:"You have food stuck in your teeth. What do you do?", ans:2, opts:["Pick at it at the table.","Use a fork.","Go to the bathroom to remove it.","Leave it."], why:"Hygiene.", ctx:"Private grooming." },
+            { id: 4010, lvl:4, type:'choice', q:"Your soup is too hot. What do you do?", ans:0, opts:["Wait or blow gently.","Spit it out.","Scream.","Throw ice in it."], why:"Safety and noise.", ctx:"Slurping is often rude." },
+            { id: 4011, lvl:4, type:'choice', q:"You are at a buffet. How do you take food?", ans:1, opts:["Use your hands.","Use the tongs provided.","Lick the spoon.","Cut in line."], why:"Hygiene.", ctx:"Don't contaminate shared food." },
+            { id: 4012, lvl:4, type:'choice', q:"Is it okay to talk with food in your mouth?", ans:2, opts:["Yes, always.","Only if it's important.","No, swallow first.","Yes, spit talk."], why:"Choking hazard and gross.", ctx:"Finish chewing first." },
+            { id: 4013, lvl:4, type:'choice', q:"Where should your elbows be while eating?", ans:1, opts:["On the table.","Off the table (traditionally).","On your head.","On your neighbor."], why:"Old manners.", ctx:"Prevents blocking others." },
+            { id: 4014, lvl:4, type:'choice', q:"Should you use your phone at the dinner table?", ans:2, opts:["Yes, scroll freely.","Yes, play games.","No, keep it away.","Yes, call a friend."], why:"Be present.", ctx:"Focus on the people with you." },
+            { id: 4015, lvl:4, type:'choice', q:"You dropped your fork on the floor. What do you do?", ans:0, opts:["Leave it and ask for a new one.","Use the 5 second rule.","Wipe it on your shirt.","Lick it."], why:"Germs.", ctx:"The floor is dirty." },
+            { id: 4016, lvl:4, type:'choice', q:"You ate something very spicy. What do you do?", ans:1, opts:["Scream fire.","Drink milk or water calmly.","Spit it on the table.","Cry loudly."], why:"Composure.", ctx:"Handle it gracefully." },
+            { id: 4017, lvl:4, type:'choice', q:"There is one slice of pizza left. What do you do?", ans:2, opts:["Take it immediately.","Lick it so it's yours.","Ask 'Does anyone want this?'.","Hide it."], why:"Sharing.", ctx:"Don't assume it's yours." },
+            { id: 4018, lvl:4, type:'choice', q:"Someone buys you dinner. What do you say?", ans:0, opts:["'Thank you'.","Run away.","Hide.","Complain."], why:"Gratitude.", ctx:"Always say thanks." },
+            { id: 4019, lvl:4, type:'choice', q:"A waiter drops a tray. What do you do?", ans:1, opts:["Laugh.","Ignore it or help if appropriate.","Yell at them.","Clap."], why:"Empathy.", ctx:"Jobs are hard, don't make it worse." },
+            { id: 4020, lvl:4, type:'choice', q:"Where should you put your napkin?", ans:0, opts:["On your lap.","On your head.","Blow your nose in it.","Wear it as a bib."], why:"Catches crumbs.", ctx:"Keep your clothes clean." },
+            { id: 4021, lvl:4, type:'choice', q:"Is double dipping a chip okay?", ans:2, opts:["Yes.","Flip the chip.","No, one dip per chip.","Lick the bowl."], why:"Germs.", ctx:"Don't share saliva." },
+            { id: 4022, lvl:4, type:'choice', q:"You have a bone or gristle in your mouth. How do you remove it?", ans:1, opts:["Spit it on the plate.","Spit it into a napkin discreetly.","Spit it on the floor.","Put it in a cup."], why:"Discretion.", ctx:"Hide the waste." },
+            { id: 4023, lvl:4, type:'choice', q:"Someone proposes a toast. What do you do?", ans:0, opts:["Raise your glass.","Chug your drink.","Smash your glass.","Sleep."], why:"Celebration.", ctx:"Eye contact helps." },
+            { id: 4024, lvl:4, type:'choice', q:"You have a food allergy. When do you tell the host?", ans:1, opts:["After you eat it.","Before the meal.","Complain during the meal.","Starve."], why:"Safety.", ctx:"Plan ahead." },
+            { id: 4025, lvl:4, type:'choice', q:"Someone asks for the salt. What do you pass?", ans:2, opts:["Just the salt.","Throw the salt.","The salt and pepper together.","Nothing."], why:"They are married.", ctx:"Keep them together." },
+
+            // LEVEL 5: SAFETY (25 Questions)
+            { id: 5001, lvl:5, type:'choice', q:"A stranger offers you candy or a gift. What should you do?", ans:2, opts:["Take it happily.","Say 'Thank you' and eat it.","Say 'No' and run to a safe adult.","Eat it immediately."], why:"Safety rule.", ctx:"Tell adult." },
+            { id: 5002, lvl:5, type:'slider', q:"How much personal information should you give to a stranger? (0=None, 100=Everything)", target: 0, range: 5, why:"Zero info.", ctx:"Name/School = Private." },
+            { id: 5003, lvl:5, type:'face', q:"Which of these people is a 'Safe Stranger' you can trust?", ans:0, opts:["👮","🦹","👹","👽"], why:"Uniforms help.", ctx:"Look for badge." },
+            { id: 5004, lvl:5, type:'choice', q:"You want to leave the house. What must you do?", ans:0, opts:["Tell a parent where you are going.","Just leave.","Sneak out.","Hide."], why:"Safety rule.", ctx:"Parents need to know you are safe." },
+            { id: 5005, lvl:5, type:'choice', q:"An adult stranger asks you to keep a secret. What do you do?", ans:1, opts:["Keep the secret.","Tell a safe parent immediately.","Tell a stranger.","Post it online."], why:"Safe adults don't ask kids to keep secrets.", ctx:"No secrets from parents." },
+            { id: 5006, lvl:5, type:'choice', q:"You are feeling very angry. What is a safe way to calm down?", ans:1, opts:["Hit the wall.","Blow on your thumb for 30 seconds.","Scream at everyone.","Throw things."], why:"Calming technique.", ctx:"Stimulates the vagus nerve." },
+            { id: 5007, lvl:5, type:'choice', q:"Someone asks for your password online. Do you give it?", ans:2, opts:["Yes.","Maybe.","No, never.","Only if they are nice."], why:"Cybersecurity.", ctx:"Keep passwords private." },
+            { id: 5008, lvl:5, type:'choice', q:"You get lost in a mall. Who should you look for?", ans:0, opts:["A security guard or store employee.","Someone in the parking lot.","Another child.","Hide in the bathroom."], why:"Find authority figures.", ctx:"Stay inside the store." },
+            { id: 5009, lvl:5, type:'choice', q:"A stranger asks you for help finding their puppy. What do you do?", ans:2, opts:["Go help them.","Get in their car.","Say 'No' and tell an adult.","Run into the woods."], why:"Adults don't ask kids for help.", ctx:"It's a trick." },
+            { id: 5010, lvl:5, type:'choice', q:"The doorbell rings and you are home alone. What do you do?", ans:1, opts:["Open it.","Keep the door locked and don't answer.","Yell 'I'M ALONE'.","Open a window."], why:"Home safety.", ctx:"Don't let them know you are alone." },
+            { id: 5011, lvl:5, type:'choice', q:"You see a gun or dangerous weapon. What do you do?", ans:2, opts:["Pick it up.","Show your friends.","Leave it and tell an adult immediately.","Play with it."], why:"Gun safety.", ctx:"Stop. Don't touch. Leave the area. Tell an adult." },
+            { id: 5012, lvl:5, type:'choice', q:"You find pills on the floor. What do you do?", ans:1, opts:["Eat them.","Don't touch and tell an adult.","Give them to the dog.","Flush them."], why:"Poison safety.", ctx:"Never eat unknown medicine." },
+            { id: 5013, lvl:5, type:'choice', q:"Someone online asks for your photo. What do you do?", ans:2, opts:["Send it.","Take a new one.","Block them and tell a parent.","Ask for money."], why:"Online predator safety.", ctx:"Don't share photos." },
+            { id: 5014, lvl:5, type:'choice', q:"You see someone being bullied. What is the safest choice?", ans:2, opts:["Fight the bully.","Laugh.","Tell a teacher or adult.","Join in."], why:"Be an ally safely.", ctx:"Get help." },
+            { id: 5015, lvl:5, type:'choice', q:"The fire alarm goes off. What do you do?", ans:1, opts:["Hide under the bed.","Leave the building calmly and quickly.","Pack your toys.","Ignore it."], why:"Fire safety.", ctx:"Get out and stay out." },
+            { id: 5016, lvl:5, type:'choice', q:"A friend dares you to do something dangerous. What do you do?", ans:2, opts:["Do it.","Call them names.","Say 'No' and walk away.","Cry."], why:"Peer pressure.", ctx:"Safety over looking cool." },
+            { id: 5017, lvl:5, type:'choice', q:"A strange dog runs up to you. What do you do?", ans:0, opts:["Stand still like a tree.","Run away screaming.","Hit it.","Try to ride it."], why:"Dog safety.", ctx:"Running triggers chase instinct." },
+            { id: 5018, lvl:5, type:'choice', q:"Someone touches you in a way you don't like. What do you say?", ans:0, opts:["'Stop it!' and tell an adult.","Nothing.","'Okay'.","Laugh."], why:"Bodily autonomy.", ctx:"Your body belongs to you." },
+            { id: 5019, lvl:5, type:'choice', q:"You accidentally break a glass. What do you do?", ans:1, opts:["Hide the pieces.","Tell an adult so they can clean it safely.","Pick it up with bare hands.","Walk on it."], why:"Avoid cuts.", ctx:"Don't touch broken glass." },
+            { id: 5020, lvl:5, type:'choice', q:"You are swimming and feel tired. What do you do?", ans:0, opts:["Get out of the water.","Keep swimming.","Hold your breath.","Go deeper."], why:"Water safety.", ctx:"Rest when tired." },
+            { id: 5021, lvl:5, type:'choice', q:"You are crossing the street. What do you look for?", ans:1, opts:["Birds.","Cars (Left, Right, Left).","Your phone.","The sun."], why:"Road safety.", ctx:"Stop, Look, Listen." },
+            { id: 5022, lvl:5, type:'choice', q:"You are riding a bike. What should you wear?", ans:0, opts:["A helmet.","A cape.","Sandals.","Headphones."], why:"Head safety.", ctx:"Protect your brain." },
+            { id: 5023, lvl:5, type:'choice', q:"It is a very hot day. What should you drink?", ans:1, opts:["Soda.","Water.","Salt water.","Nothing."], why:"Hydration.", ctx:"Water is best." },
+            { id: 5024, lvl:5, type:'choice', q:"You smell smoke in the house. What do you do?", ans:0, opts:["Crawl low and get out.","Hide in the closet.","Open the fridge.","Go to sleep."], why:"Fire safety.", ctx:"Smoke rises, stay low." },
+            { id: 5025, lvl:5, type:'choice', q:"You don't know the number for emergencies. What is it?", ans:0, opts:["911 (or local equivalent).","123.","555.","000."], why:"Emergency preparedness.", ctx:"Only for real emergencies." },
+
+            // LEVEL 6: CLASSROOM (25 Questions)
+            { id: 6001, lvl:6, type:'choice', q:"The teacher is talking to the class. What should you be doing?", ans:1, opts:["Talk to your friend.","Listen quietly.","Sleep on your desk.","Sing a song."], why:"Respect authority.", ctx:"Listen to learn." },
+            { id: 6002, lvl:6, type:'slider', q:"How high should you raise your hand when you want to speak? (0=Low, 100=High)", target: 90, range: 20, why:"High and straight.", ctx:"Confidence." },
+            { id: 6003, lvl:6, type:'face', q:"Which face shows that someone is confused?", ans:2, opts:["😄","😡","😕","😴"], why:"Eyebrows together.", ctx:"Ask for help." },
+            { id: 6004, lvl:6, type:'choice', q:"You need to use the bathroom during a lesson. What do you do?", ans:0, opts:["Raise your hand and ask permission.","Just walk out.","Hold it until it hurts.","Pee on the floor."], why:"School rules.", ctx:"Ask nicely." },
+            { id: 6005, lvl:6, type:'choice', q:"You finish your work early. What should you do?", ans:1, opts:["Distract your friends.","Read a book quietly.","Scream 'I'M DONE'.","Run laps."], why:"Respect others' focus.", ctx:"Don't become a distraction." },
+            { id: 6006, lvl:6, type:'choice', q:"You don't understand the assignment. What should you do?", ans:0, opts:["Raise your hand and ask for help.","Cry.","Give up.","Guess."], why:"Self-advocacy.", ctx:"Teachers want to help." },
+            { id: 6007, lvl:6, type:'choice', q:"A friend passes you a note during class. What do you do?", ans:2, opts:["Read it loudly.","Pass a note back.","Ignore it or put it away.","Eat it."], why:"Focus rule.", ctx:"Read it later." },
+            { id: 6008, lvl:6, type:'choice', q:"You are arguing in a group project. What is the best solution?", ans:1, opts:["Quit the group.","Talk and compromise.","Hit your partner.","Do all the work yourself."], why:"Collaboration.", ctx:"Share the load." },
+            { id: 6009, lvl:6, type:'choice', q:"You gave the wrong answer in class. How do you react?", ans:0, opts:["Try again next time.","Cry.","Flip your desk.","Blame the teacher."], why:"Resilience.", ctx:"Mistakes are how we learn." },
+            { id: 6010, lvl:6, type:'choice', q:"You forgot your pencil. What do you do?", ans:2, opts:["Steal one.","Do no work.","Ask politely to borrow one.","Use blood."], why:"Problem solving.", ctx:"Be polite when asking." },
+            { id: 6011, lvl:6, type:'choice', q:"The fire alarm rings at school. What do you do?", ans:1, opts:["Scream and run.","Line up silently and walk out.","Hide under the desk.","Keep working."], why:"Safety protocol.", ctx:"Stay calm and listen." },
+            { id: 6012, lvl:6, type:'choice', q:"There is a substitute teacher. How should you behave?", ans:0, opts:["Be helpful and polite.","Be naughty because it's not your teacher.","Ignore them.","Swap names with friends."], why:"Respect.", ctx:"Subs have a hard job." },
+            { id: 6013, lvl:6, type:'choice', q:"You see someone being bullied at recess. What do you do?", ans:2, opts:["Join in.","Laugh.","Tell a teacher.","Ignore it."], why:"Citizenship.", ctx:"Be an ally." },
+            { id: 6014, lvl:6, type:'choice', q:"You are late to class. How do you enter?", ans:1, opts:["Kick the door open.","Enter quietly and say sorry.","Go home.","Make a loud excuse."], why:"Minimizing disruption.", ctx:"Sorry I'm late." },
+            { id: 6015, lvl:6, type:'choice', q:"You see your friend cheating on a test. What do you do?", ans:2, opts:["Cheats too.","Help them cheat.","Focus on your own work.","Copy them."], why:"Integrity.", ctx:"Learn it yourself." },
+            { id: 6016, lvl:6, type:'choice', q:"The bell rings. Can you leave?", ans:1, opts:["Yes, run out.","No, wait for the teacher to dismiss you.","Scream freedom.","Sleep."], why:"Teacher dismisses you.", ctx:"Not the bell." },
+            { id: 6017, lvl:6, type:'choice', q:"Is it okay to use your phone in class?", ans:0, opts:["No, keep it in your bag.","Yes, play games.","Yes, text your mom.","Yes, take photos."], why:"Focus rules.", ctx:"School is for learning." },
+            { id: 6018, lvl:6, type:'choice', q:"Your desk is very messy. What should you do?", ans:2, opts:["Leave it.","Push everything to the floor.","Clean and organize it.","Sit on top of it."], why:"Organization.", ctx:"Respect shared space." },
+            { id: 6019, lvl:6, type:'choice', q:"It is carpet time. How should you sit?", ans:1, opts:["Lay down flat.","Sit 'Criss-Cross Applesauce'.","Kick your neighbor.","Stand up."], why:"Personal space.", ctx:"Sit nicely." },
+            { id: 6020, lvl:6, type:'choice', q:"How should you move in the hallway?", ans:0, opts:["Walk.","Run.","Skip.","Crawl."], why:"Safety.", ctx:"Walk, don't run." },
+            { id: 6021, lvl:6, type:'choice', q:"Someone else answers a question correctly. What do you do?", ans:1, opts:["Boo them.","Listen or clap politely.","Talk over them.","Laugh."], why:"Respect.", ctx:"Learn from others." },
+            { id: 6022, lvl:6, type:'choice', q:"Can you eat snacks whenever you want?", ans:2, opts:["Yes.","During a test.","No, only at break/lunch time.","Share with the teacher."], why:"Rules and hygiene.", ctx:"Unless allowed." },
+            { id: 6023, lvl:6, type:'choice', q:"A guest speaker comes to class. What do you do?", ans:0, opts:["Clap and listen.","Boo them.","Sleep.","Talk to your friends."], why:"Hospitality.", ctx:"Show them respect." },
+            { id: 6024, lvl:6, type:'choice', q:"You forgot your homework. What do you tell the teacher?", ans:1, opts:["Lie about a dog eating it.","Tell the truth and apologize.","Cry.","Copy your friend's."], why:"Responsibility.", ctx:"Own your mistake." },
+            { id: 6025, lvl:6, type:'choice', q:"How many chair legs should be on the floor?", ans:2, opts:["Two (leaning back).","Zero (standing on it).","Four.","One (spinning)."], why:"Safety.", ctx:"Don't crack your head." }
+        ];
+
+        const battleScenarios = [{ npc: "Grandma", lines: [{ say: "Here is a sweater!", options: ["Ugly","Thanks","Toy?"], correct: 1, reply: "Glad you like it." }] }];
+
+        // STATE
+        let state = { 
+            username: "", avatar: "😀", coins: 0, gems: 0, lives: 3, streak: 0, 
+            lastLogin: null, lastDailyGift: null, 
+            maxLevel: 1, levelProgress: {}, levelWins: {}, 
+            inventory: { '5050': 1, 'freehit': 0 }, 
+            activeLoan: null, diary: [],
+            totalCorrect: 0, 
+            sessionStreak: 0,
+            unlockedTheorists: [], unlockedPeople: [] 
+        };
+        let currentLoanOffer = null;
+
+        function init() {
+            const saved = localStorage.getItem('sociocoolState');
+            const today = new Date().toDateString();
+            
+            if (saved) {
+                state = { ...state, ...JSON.parse(saved) };
+                levels.forEach(l => { 
+                    if(typeof state.levelProgress[l.id] === 'undefined') state.levelProgress[l.id] = 0; 
+                    if(typeof state.levelWins[l.id] === 'undefined') state.levelWins[l.id] = 0; 
+                });
+                
+                // STREAK CHECK
+                if (state.lastLogin !== today) {
+                    if (state.lastLogin) {
+                        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+                        if (state.lastLogin === yesterday.toDateString()) state.streak++;
+                        else state.streak = 1;
+                    } else state.streak = 1;
+                    state.lastLogin = today;
+                    saveState();
+                }
+                
+                if(state.username) showScreen('screen-map'); else showScreen('screen-setup');
+            } else {
+                // FIRST TIME LOAD
+                state.streak = 1; 
+                state.lastLogin = today;
+                levels.forEach(l => { state.levelProgress[l.id] = 0; state.levelWins[l.id] = 0; });
+                saveState();
+                showScreen('screen-setup');
+            }
+            updateHUD();
+            applyTheme('theme-blue');
+        }
+
+        function setAvatar(emoji) { state.avatar = emoji; document.getElementById('avatarPreview').innerText = emoji; document.getElementById('moodAvatar').innerText = emoji; sfx.play('click'); }
+        function finishSetup() {
+            const name = document.getElementById('usernameInput').value;
+            if(!name) return alert("Enter a name!");
+            state.username = name; saveState(); showScreen('screen-map');
+        }
+        function saveState() { localStorage.setItem('sociocoolState', JSON.stringify(state)); updateHUD(); }
+        function updateHUD() {
+            document.getElementById('livesDisplay').innerText = state.lives;
+            document.getElementById('coinsDisplay').innerText = state.coins;
+            document.getElementById('gemsDisplay').innerText = state.gems;
+            document.getElementById('streakDisplay').innerText = state.streak;
+            document.getElementById('userAvatarDisplay').innerText = state.avatar;
+            document.getElementById('moodAvatar').innerText = state.avatar;
+            document.getElementById('welcomeText').innerText = `Hi, ${state.username}!`;
+            
+            // Update Lifeline Counts in Quiz
+            document.getElementById('qty-5050').innerText = state.inventory['5050'] || 0;
+            document.getElementById('qty-freehit').innerText = state.inventory['freehit'] || 0;
+
+            if(state.maxLevel >= 3) {
+                document.getElementById('lockMiniGame').classList.add('hidden');
+                document.getElementById('btnMiniGame').onclick = startMiniGame;
+                document.getElementById('btnMiniGame').classList.remove('opacity-50');
+            } else {
+                document.getElementById('lockMiniGame').classList.remove('hidden');
+                document.getElementById('btnMiniGame').onclick = () => alert("Unlock at Level 3!");
+                document.getElementById('btnMiniGame').classList.add('opacity-50');
+            }
+        }
+
+        function showScreen(id) {
+            gameActive = false; 
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'screen-map') { renderMap(); checkFriendEvent(); }
+            if(id === 'screen-diary') renderDiary();
+            if(id === 'screen-shop') renderShop();
+            if(id === 'screen-library') renderLibrary();
+            sfx.play('click');
+        }
+        function toggleMenu() { openModal('parentModal'); }
+        function showTutorial() { openModal('tutorialModal'); }
+        
+        function openModal(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+        }
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+        }
+        
+        function showUnlockModal(t) {
+            document.getElementById('unlockName').innerText = t.name;
+            document.getElementById('unlockConcept').innerText = t.concept;
+            document.getElementById('unlockDesc').innerText = t.desc;
+            document.getElementById('unlockImage').src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.name}`; 
+            openModal('unlockModal');
+        }
+
+        let currentLevelId = 0;
+        let currentQuestions = [];
+        let qIndex = 0;
+        let roundScore = 0;
+
+        function startLevel(id) {
+            if(state.lives <= 0) { alert("No hearts left!"); return; }
+            if(id > state.maxLevel) return;
+            currentLevelId = id;
+            let pool = questionBank.filter(q => q.lvl === id);
+            // No fallback needed as we have 25 per level now
+            // Shuffle and pick 5 unique
+            currentQuestions = pool.sort(() => 0.5 - Math.random()).slice(0, 5);
+            qIndex = 0; roundScore = 0;
+            showScreen('screen-quiz');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = currentQuestions[qIndex];
+            document.getElementById('levelProgress').innerText = `Q ${qIndex+1}/5`;
+            document.getElementById('questionText').innerText = q.q;
+            document.getElementById('questionTag').innerText = levels.find(l=>l.id===q.lvl)?.title || "General";
+            const container = document.getElementById('quizContent');
+            container.innerHTML = '';
+            
+            document.getElementById('btn-5050').classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('btn-freehit').classList.remove('opacity-50', 'pointer-events-none');
+            
+            let textToRead = q.q;
+            if (q.type === 'choice') q.opts.forEach((opt, idx) => { textToRead += `. Option ${idx + 1}: ${opt}`; });
+            else if (q.type === 'slider') textToRead += ". Use the slider.";
+            else if (q.type === 'face') textToRead += ". Select the face.";
+            
+            currentTTSString = textToRead;
+            if(ttsEnabled) speak(textToRead);
+
+            if(q.type === 'slider') {
+                container.innerHTML = `<div class="mt-8 px-4"><input type="range" id="qSlider" min="0" max="100" value="50" oninput="sfx.play('click')"><div class="flex justify-between text-xs text-gray-500 mt-2"><span>Min</span><span>Max</span></div><button onclick="submitSlider(${q.target}, ${q.range})" class="w-full bg-[var(--bg-primary)] text-white py-3 rounded-xl mt-6 font-bold shadow-md btn-bounce">Submit</button></div>`;
+            } else if (q.type === 'face') {
+                 container.className = "grid grid-cols-2 gap-4";
+                 q.opts.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = "text-6xl p-4 bg-white rounded-xl shadow-md border-2 border-gray-100 hover:border-blue-300 btn-bounce";
+                    btn.innerText = opt;
+                    btn.onclick = () => handleAnswer(idx);
+                    container.appendChild(btn);
+                 });
+            } else {
+                container.className = "space-y-3";
+                q.opts.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-4 rounded-xl border-2 border-gray-100 bg-white hover:bg-gray-50 font-semibold text-gray-700 transition btn-bounce";
+                    btn.id = `opt-${idx}`;
+                    btn.innerText = opt;
+                    btn.onclick = () => handleAnswer(idx);
+                    container.appendChild(btn);
+                });
+            }
+        }
+
+        function submitSlider(target, range) {
+            const val = parseInt(document.getElementById('qSlider').value);
+            if(Math.abs(val - target) <= range) handleAnswer(null, true); else handleAnswer(null, false);
+        }
+
+        function handleAnswer(idx, isSliderPass) {
+            const q = currentQuestions[qIndex];
+            let isCorrect = (q.type === 'slider') ? isSliderPass : (idx === q.ans);
+            
+            document.getElementById('comboBadge').classList.add('hidden');
+
+            if(isCorrect) {
+                sfx.play('correct'); 
+                state.coins += 10; 
+                roundScore++;
+                
+                if(!state.totalCorrect) state.totalCorrect = 0;
+                state.totalCorrect++;
+                
+                if(!state.sessionStreak) state.sessionStreak = 0;
+                state.sessionStreak++;
+
+                if(state.sessionStreak === 3 || state.sessionStreak === 5 || state.sessionStreak % 10 === 0) {
+                    const bonus = state.sessionStreak * 2;
+                    state.coins += bonus;
+                    const badge = document.getElementById('comboBadge');
+                    badge.innerText = `🔥 ${state.sessionStreak} IN A ROW! +${bonus}🪙`;
+                    badge.classList.remove('hidden');
+                }
+
+                if(state.totalCorrect > 0 && state.totalCorrect % 15 === 0) {
+                    const availableTheorists = theorists.filter(t => !state.unlockedTheorists.includes(t.id));
+                    if (availableTheorists.length > 0) {
+                        const newTheorist = availableTheorists[Math.floor(Math.random() * availableTheorists.length)];
+                        state.unlockedTheorists.push(newTheorist.id);
+                        setTimeout(() => showUnlockModal(newTheorist), 500); 
+                    }
+                }
+
+                if(!state.diary.find(d => d.id === q.id)) state.diary.push({id: q.id, text: q.q, applied: false});
+                showFeedback(true, q);
+            } else {
+                sfx.play('wrong'); 
+                state.lives = Math.max(0, state.lives - 1);
+                state.sessionStreak = 0;
+                showFeedback(false, q);
+            }
+            saveState();
+        }
+
+        function showFeedback(correct, q) {
+            const icon = document.getElementById('feedbackIcon');
+            const title = document.getElementById('feedbackTitle');
+            if(correct) { icon.innerHTML = '👍'; icon.className = "w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg bg-green-100"; title.innerText = "Sociocool!"; title.className = "text-2xl font-bold mb-2 text-green-600"; } 
+            else { icon.innerHTML = '👎'; icon.className = "w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg bg-red-100"; title.innerText = "Not quite..."; title.className = "text-2xl font-bold mb-2 text-red-600"; }
+            document.getElementById('feedbackText').innerText = q.why;
+            document.getElementById('feedbackContext').innerText = q.ctx;
+            openModal('feedbackModal');
+        }
+
+        function nextQuestion() {
+            closeModal('feedbackModal');
+            if(state.lives <= 0) { showScreen('screen-map'); return; }
+            qIndex++;
+            if(qIndex < 5) renderQuestion(); else finishLevel();
+        }
+        
+        function finishLevel() {
+            if(roundScore >= 3) {
+                if(!state.levelWins[currentLevelId]) state.levelWins[currentLevelId] = 0; state.levelWins[currentLevelId]++;
+                if(!state.levelProgress[currentLevelId]) state.levelProgress[currentLevelId] = 0; state.levelProgress[currentLevelId] += roundScore;
+                if(state.levelProgress[currentLevelId] >= 10 && currentLevelId === state.maxLevel && state.maxLevel < 6) {
+                    state.maxLevel++;
+                    alert("Level Unlocked!");
+                }
+                state.coins += roundScore * 5; alert(`Level Complete! +${roundScore*5} Coins`);
+            } else { alert("Try again!"); }
+            saveState(); showScreen('screen-map');
+        }
+        
+        function quitLevel() { if(confirm("Quit?")) showScreen('screen-map'); }
+
+        function useLifeline(type) {
+            if(!state.inventory[type] || state.inventory[type] <= 0) { alert("Buy more in Shop!"); return; }
+            const q = currentQuestions[qIndex];
+            state.inventory[type]--;
+            
+            if (type === '5050' && q.type === 'choice') {
+                let removed = 0;
+                q.opts.forEach((opt, idx) => {
+                    if (idx !== q.ans && removed < 2) {
+                        const el = document.getElementById(`opt-${idx}`);
+                        if(el) { el.style.visibility = 'hidden'; removed++; }
+                    }
+                });
+            } else if (type === 'freehit' && q.type === 'choice') {
+                const el = document.getElementById(`opt-${q.ans}`);
+                if(el) el.classList.add('ring-4', 'ring-green-400', 'bg-green-50');
+            }
+            
+            updateHUD();
+            saveState();
+        }
+
+        let battleIdx = 0;
+        function startBattle() { showScreen('screen-battle'); battleIdx = 0; document.getElementById('battleLog').innerHTML = ''; battleStep(battleScenarios[0]); }
+        function quitBattle() { showScreen('screen-map'); }
+        function battleStep(scenario) {
+            if(!document.getElementById('screen-battle').classList.contains('active')) return;
+            if(battleIdx >= scenario.lines.length) { state.gems += 20; alert("Won! +20 Gems"); saveState(); showScreen('screen-map'); return; }
+            const line = scenario.lines[battleIdx];
+            const log = document.getElementById('battleLog');
+            log.innerHTML += `<div class="bg-gray-100 p-3 rounded-lg self-start w-3/4 mb-2 shadow-sm"><strong>${scenario.npc}:</strong> ${line.say}</div>`;
+            log.scrollTop = log.scrollHeight;
+            if(ttsEnabled) speak(line.say);
+            const optsDiv = document.getElementById('battleOptions');
+            optsDiv.innerHTML = '';
+            line.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "bg-purple-100 text-purple-700 p-3 rounded-lg font-bold hover:bg-purple-200 text-left transition";
+                btn.innerText = opt;
+                btn.onclick = () => {
+                    log.innerHTML += `<div class="bg-purple-500 text-white p-3 rounded-lg self-end ml-auto w-3/4 mb-2 text-right shadow-sm"><strong>You:</strong> ${opt}</div>`;
+                    if(idx === line.correct) { battleIdx++; setTimeout(() => battleStep(scenario), 1000); } 
+                    else { alert("Lost!"); showScreen('screen-map'); }
+                };
+                optsDiv.appendChild(btn);
+            });
+        }
+
+        let eyePos = 50, eyeDir = 1, focusScore = 50, gameActive = false;
+        function startMiniGame() { showScreen('screen-eye-game'); document.getElementById('eyeGameOverlay').classList.remove('hidden'); gameActive = false; }
+        function quitMiniGame() { gameActive = false; showScreen('screen-map'); }
+        function initEyeGame() { document.getElementById('eyeGameOverlay').classList.add('hidden'); gameActive = true; focusScore = 50; eyePos = 50; eyeDir = 1; runEyeGame(); }
+        function runEyeGame() {
+            if(!gameActive) return;
+            eyePos += eyeDir * 0.5; if(eyePos > 90 || eyePos < 10) eyeDir *= -1;
+            document.getElementById('eyeTarget').style.left = eyePos + '%';
+            const sliderVal = parseInt(document.getElementById('eyeSlider').value);
+            document.getElementById('playerFrame').style.left = sliderVal + '%';
+            if(Math.abs(sliderVal - eyePos) < 10) focusScore += 0.5; else focusScore -= 0.5;
+            const bar = document.getElementById('focus-bar');
+            bar.style.width = focusScore + '%';
+            if(focusScore > 50) bar.className = "h-full bg-green-500"; else bar.className = "h-full bg-red-500";
+            if(focusScore >= 100) { gameActive = false; alert("Won! +10 Gems"); state.gems += 10; saveState(); showScreen('screen-map'); }
+            else if(focusScore <= 0) { gameActive = false; alert("Lost!"); document.getElementById('eyeGameOverlay').classList.remove('hidden'); }
+            else requestAnimationFrame(runEyeGame);
+        }
+
+        function renderDiary() {
+            const container = document.getElementById('diaryEntries');
+            container.innerHTML = '';
+            const missions = [{id: 'm1', text: "Say hello to a teacher"}];
+            [...missions, ...state.diary].forEach(item => {
+                const div = document.createElement('div');
+                div.className = "bg-white p-4 rounded-xl shadow-sm border-l-4 border-purple-400 flex justify-between items-center";
+                div.innerHTML = `<div><div class="text-xs text-gray-400 font-bold uppercase">Mission</div><div class="font-bold">${item.text}</div></div>`;
+                const btn = document.createElement('button');
+                if(item.applied) { btn.className = "text-green-500 font-bold text-sm"; btn.innerHTML = '<i class="fas fa-check"></i> Done'; }
+                else { btn.className = "bg-purple-100 text-purple-600 px-3 py-1 rounded-full font-bold text-xs"; btn.innerText = "I did it!"; btn.onclick = () => { item.applied = true; state.gems += 5; createConfetti(); sfx.play('correct'); saveState(); renderDiary(); }; }
+                div.appendChild(btn); container.appendChild(div);
+            });
+        }
+        function addParentMission() {
+            const txt = document.getElementById('parentMissionInput').value;
+            if(txt) { state.diary.unshift({id: Date.now(), text: txt, applied: false}); saveState(); alert("Added!"); closeModal('parentModal'); }
+        }
+
+        function checkFriendEvent() {
+            if (state.activeLoan) return;
+            if (Math.random() > 0.3) return; 
+            const type = Math.random() > 0.5 ? 'coins' : 'gems';
+            const amount = type === 'coins' ? 20 : 10;
+            if(state[type] < amount) return;
+            currentLoanOffer = { type, amount };
+            document.getElementById('friendEventText').innerHTML = `Can I borrow <strong>${amount} ${type==='coins'?'🪙':'💎'}</strong>?`;
+            openModal('friendEventModal');
+        }
+        function acceptFriendLoan() {
+            if(state[currentLoanOffer.type] < currentLoanOffer.amount) return alert("Not enough funds!");
+            state[currentLoanOffer.type] -= currentLoanOffer.amount;
+            const d = new Date(); d.setDate(d.getDate() + 1);
+            state.activeLoan = { type: currentLoanOffer.type, amount: currentLoanOffer.amount, dateDue: d.toDateString() };
+            saveState(); closeModal('friendEventModal');
+        }
+        function createConfetti() { for(let i=0; i<30; i++) { const c = document.createElement('div'); c.className = 'confetti'; c.style.left = Math.random()*100+'vw'; c.style.backgroundColor=['#f00','#0f0','#00f'][Math.floor(Math.random()*3)]; c.style.animationDuration=(Math.random()*2+1)+'s'; document.body.appendChild(c); setTimeout(()=>c.remove(),3000); }}
+        
+        function renderMap() {
+            const mapEl = document.getElementById('levelMap'); mapEl.innerHTML = '';
+            levels.forEach((lvl, index) => {
+                const isLocked = lvl.id > state.maxLevel;
+                const isGold = state.levelWins[lvl.id] >= 3;
+                const progress = state.levelProgress[lvl.id] || 0;
+                const pct = Math.min(100, (progress / 10) * 100);
+                const node = document.createElement('div');
+                node.className = `level-node w-full bg-white p-4 rounded-2xl shadow-md border-b-4 border-gray-200 cursor-pointer flex items-center gap-4 ${isLocked?'locked':''} ${isGold ? 'gold-border border-yellow-400' : ''}`;
+                node.onclick = () => startLevel(lvl.id);
+                node.innerHTML = `<div class="w-12 h-12 rounded-full ${isGold ? 'gold-icon' : 'bg-[var(--bg-primary)]'} text-white flex items-center justify-center text-xl shrink-0"><i class="fas ${lvl.icon} ${isGold ? 'text-yellow-500' : ''}"></i></div><div class="flex-1 min-w-0"><div class="font-bold truncate">${lvl.title}</div><div class="text-xs text-gray-500 truncate mb-1">${lvl.desc}</div>${!isLocked && !isGold ? `<div class="w-full bg-gray-200 rounded-full h-2 mt-1"><div class="bg-green-500 h-2 rounded-full transition-all" style="width: ${pct}%"></div></div>` : ''}${isGold ? '<div class="text-[10px] text-yellow-500 font-bold uppercase"><i class="fas fa-crown"></i> Mastered</div>' : ''}</div>`;
+                mapEl.appendChild(node);
+            });
+        }
+        
+        function renderShop() {
+             const container = document.getElementById('shopPeopleContainer'); container.innerHTML = '';
+             const today = new Date().toDateString();
+             const btnGift = document.getElementById('btnDailyGift');
+             if(state.lastDailyGift === today) { btnGift.innerText = "Claimed"; btnGift.disabled = true; btnGift.className = "bg-gray-200 text-gray-400 px-4 py-2 rounded-full font-bold shadow-sm"; } 
+             else { btnGift.innerText = "Claim"; btnGift.disabled = false; btnGift.className = "bg-white text-orange-500 px-4 py-2 rounded-full font-bold shadow-md btn-bounce"; }
+             coolPeopleData.forEach(p => {
+                const isOwned = state.unlockedPeople.includes(p.id);
+                const item = document.createElement('div');
+                item.className = "bg-white p-3 rounded-xl shadow-sm border flex justify-between items-center";
+                item.innerHTML = `<div class="flex items-center gap-3"><div class="bg-gray-100 w-10 h-10 rounded-full flex items-center justify-center"><i class="${p.icon} text-gray-500"></i></div><div><div class="font-bold text-sm">${p.name}</div><div class="text-xs text-gray-500">Hero</div></div></div>`;
+                const btn = document.createElement('button');
+                if (isOwned) { btn.className = "text-gray-400 text-xs font-bold px-3 py-1"; btn.innerText = "Owned"; btn.disabled = true; } 
+                else { btn.className = "bg-purple-500 text-white px-3 py-1 rounded-lg font-bold text-sm shadow-sm btn-bounce"; btn.innerText = `${p.cost} 💎`; btn.onclick = () => { if(state.gems >= p.cost) { state.gems -= p.cost; state.unlockedPeople.push(p.id); alert("Unlocked!"); saveState(); renderShop(); } else alert("Need Gems 💎!"); }; }
+                item.appendChild(btn); container.appendChild(item);
+            });
+        }
+        function claimDailyGift() {
+            const today = new Date().toDateString();
+            if(state.lastDailyGift === today) return;
+            state.inventory['5050']++; state.lastDailyGift = today; createConfetti(); alert("Gift: 1 Free 50/50!"); saveState(); renderShop(); updateHUD();
+        }
+        function buyItem(type, cost) {
+            if(state.coins >= cost) { state.coins -= cost; if(type==='life') state.lives++; else state.inventory[type]++; saveState(); alert("Bought!"); updateHUD(); } else alert("Need Coins!");
+        }
+
+        function setMood(zone) {
+            const avatar = document.getElementById('moodAvatar');
+            const feedback = document.getElementById('moodFeedback');
+            const tips = { 'red': { t: 'Angry/Anxious', m: 'This emotion is valid!', tip: 'Blow on your thumb for 30s.' }, 'blue': { t: 'Sad/Tired', m: 'It is perfect to feel this.', tip: 'Drink water or ask for a hug.' }, 'yellow': { t: 'Hyper/Silly', m: 'Your energy is amazing!', tip: 'Do 10 jumping jacks.' }, 'green': { t: 'Calm/Happy', m: 'Wonderful feeling!', tip: 'Share your smile.' } };
+            let x = 0, y = 0; if(zone === 'red') { x = -50; y = -50; } if(zone === 'yellow') { x = 50; y = -50; } if(zone === 'blue') { x = -50; y = 50; } if(zone === 'green') { x = 50; y = 50; }
+            avatar.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+            const info = tips[zone];
+            document.getElementById('moodTitle').innerText = info.t; document.getElementById('moodText').innerText = info.m; document.getElementById('moodTip').innerText = info.tip;
+            feedback.classList.remove('hidden'); sfx.play('click');
+        }
+        function startBreathing() { document.getElementById('breathingOverlay').classList.remove('hidden'); document.getElementById('breathingOverlay').classList.add('flex'); }
+        function stopBreathing() { document.getElementById('breathingOverlay').classList.add('hidden'); document.getElementById('breathingOverlay').classList.remove('flex'); }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
+
+
