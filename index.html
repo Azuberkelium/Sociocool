@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sociocool!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Fredoka', sans-serif; touch-action: manipulation; background-color: #f3f4f6; overflow-x: hidden; user-select: none; }
+        .screen { display: none; min-height: 100vh; animation: fadeIn 0.3s ease-in-out; padding-bottom: 90px; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .btn-bounce:active { transform: scale(0.95); }
+        .level-node.locked { filter: grayscale(100%); opacity: 0.6; pointer-events: none; }
+        .confetti { position: fixed; width: 10px; height: 10px; background-color: #f00; animation: fall linear forwards; z-index: 100; }
+        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+        .gold-border { border-color: #fbbf24 !important; box-shadow: 0 0 15px rgba(251, 191, 36, 0.5); }
+        .gold-icon { color: #fbbf24 !important; background-color: #fffbeb !important; }
+        
+        /* Slider Styling */
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 15px; border-radius: 10px; background: #d1d5db; outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: 4px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        
+        /* Mini-game bar */
+        #focus-bar { transition: width 0.1s linear; }
+        
+        /* Mood Wheel */
+        .mood-quadrant { transition: transform 0.2s; }
+        .mood-quadrant:active { transform: scale(0.95); }
+        .breathing-circle { animation: breathe 8s infinite ease-in-out; }
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            40% { transform: scale(1.5); opacity: 1; } /* Inhale */
+            50% { transform: scale(1.5); opacity: 1; } /* Hold */
+            90% { transform: scale(1); opacity: 0.8; } /* Exhale */
+        }
+
+        /* Themes */
+        .theme-blue { --bg-primary: #3b82f6; --bg-secondary: #dbeafe; }
+        .theme-purple { --bg-primary: #8b5cf6; --bg-secondary: #ede9fe; }
+        .theme-green { --bg-primary: #10b981; --bg-secondary: #d1fae5; }
+        .theme-orange { --bg-primary: #f97316; --bg-secondary: #ffedd5; }
+    </style>
+</head>
+<body class="theme-blue bg-[var(--bg-secondary)] text-gray-800 transition-colors duration-500">
+
+    <!-- HEADER -->
+    <div class="fixed top-0 w-full bg-white shadow-lg z-50 p-2 flex justify-between items-center h-16">
+        <div class="flex items-center gap-1 pl-2">
+            <span class="text-2xl animate-pulse">❤️</span><span id="livesDisplay" class="font-bold text-xl text-gray-700">3</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-full border border-yellow-200"><span class="text-sm">🪙</span><span id="coinsDisplay" class="font-bold text-xs text-yellow-800">0</span></div>
+            <div class="flex items-center gap-1 bg-purple-100 px-2 py-1 rounded-full border border-purple-200"><span class="text-sm">💎</span><span id="gemsDisplay" class="font-bold text-xs text-purple-800">0</span></div>
+            <div class="flex items-center gap-1 bg-orange-100 px-2 py-1 rounded-full border border-orange-200"><span class="text-sm">🔥</span><span id="streakDisplay" class="font-bold text-xs text-orange-800">0</span></div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="toggleTTS()" id="ttsBtn" class="text-gray-400 p-2"><i class="fas fa-volume-mute text-lg"></i></button>
+            <button onclick="toggleMenu()" class="text-gray-600 p-2"><i class="fas fa-bars text-xl"></i></button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="app" class="pt-20 px-4 max-w-md mx-auto relative">
+
+        <!-- SCREEN: SETUP (Avatar) -->
+        <div id="screen-setup" class="screen">
+            <h1 class="text-3xl font-bold text-center mb-6 text-[var(--bg-primary)]">Who are you?</h1>
+            <div class="bg-white p-6 rounded-2xl shadow-lg text-center">
+                <div id="avatarPreview" class="w-24 h-24 rounded-full bg-blue-100 mx-auto mb-4 flex items-center justify-center text-5xl">😀</div>
+                <input type="text" id="usernameInput" placeholder="Your Name" class="w-full border-2 border-gray-200 rounded-xl p-3 mb-4 text-center font-bold text-lg focus:border-[var(--bg-primary)] outline-none">
+                
+                <p class="mb-2 font-bold text-gray-500">Pick your look:</p>
+                <div class="flex justify-center gap-3 mb-6">
+                    <button onclick="setAvatar('😀')" class="text-3xl hover:scale-125 transition">😀</button>
+                    <button onclick="setAvatar('😎')" class="text-3xl hover:scale-125 transition">😎</button>
+                    <button onclick="setAvatar('🤓')" class="text-3xl hover:scale-125 transition">🤓</button>
+                    <button onclick="setAvatar('🤠')" class="text-3xl hover:scale-125 transition">🤠</button>
+                    <button onclick="setAvatar('🤖')" class="text-3xl hover:scale-125 transition">🤖</button>
+                </div>
+                <button onclick="finishSetup()" class="w-full bg-[var(--bg-primary)] text-white py-3 rounded-xl font-bold shadow-lg btn-bounce">Let's Go!</button>
+            </div>
+        </div>
+
+        <!-- SCREEN: MAP -->
+        <div id="screen-map" class="screen active">
+            <div class="flex justify-center items-center gap-2 mb-4">
+                <div id="userAvatarDisplay" class="text-2xl"></div>
+                <h1 id="welcomeText" class="text-2xl font-bold text-[var(--bg-primary)]">Sociocool!</h1>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                 <button onclick="startBattle()" class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white p-3 rounded-xl shadow-lg btn-bounce flex flex-col items-center">
+                    <i class="fas fa-comments text-2xl mb-1"></i>
+                    <span class="text-xs font-bold">Battle Mode</span>
+                </button>
+                <button onclick="startMiniGame()" id="btnMiniGame" class="bg-gradient-to-r from-teal-400 to-green-500 text-white p-3 rounded-xl shadow-lg btn-bounce flex flex-col items-center relative">
+                    <i class="fas fa-eye text-2xl mb-1"></i>
+                    <span class="text-xs font-bold">Focus Hero</span>
+                    <div id="lockMiniGame" class="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center"><i class="fas fa-lock text-white"></i></div>
+                </button>
+            </div>
+
+            <div class="flex flex-col items-center space-y-6" id="levelMap"></div>
+            
+            <div class="mt-8 text-center pb-6">
+                <a href="https://skelliumgames.netlify.app" target="_blank" class="text-xs font-bold text-gray-400 hover:text-[var(--bg-primary)]"><i class="fas fa-gamepad"></i> Other Skellium games</a>
+            </div>
+        </div>
+
+        <!-- SCREEN: MOOD WHEEL -->
+        <div id="screen-mood" class="screen">
+            <h2 class="text-2xl font-bold text-center mb-2 text-[var(--bg-primary)]">How are you feeling?</h2>
+            <p class="text-xs text-center text-gray-500 mb-6">Move your face to the color that matches!</p>
+            
+            <!-- Wheel Container -->
+            <div class="relative w-64 h-64 mx-auto mb-8">
+                <!-- Zones -->
+                <div onclick="setMood('red')" class="mood-quadrant absolute top-0 left-0 w-32 h-32 bg-red-400 rounded-tl-full flex items-center justify-center cursor-pointer border-r-2 border-b-2 border-white/20 shadow-sm hover:bg-red-500">
+                    <span class="text-2xl transform -translate-x-2 -translate-y-2 text-white font-bold">😡</span>
+                </div>
+                <div onclick="setMood('yellow')" class="mood-quadrant absolute top-0 right-0 w-32 h-32 bg-yellow-400 rounded-tr-full flex items-center justify-center cursor-pointer border-l-2 border-b-2 border-white/20 shadow-sm hover:bg-yellow-500">
+                    <span class="text-2xl transform translate-x-2 -translate-y-2 text-white font-bold">🤪</span>
+                </div>
+                <div onclick="setMood('blue')" class="mood-quadrant absolute bottom-0 left-0 w-32 h-32 bg-blue-400 rounded-bl-full flex items-center justify-center cursor-pointer border-r-2 border-t-2 border-white/20 shadow-sm hover:bg-blue-500">
+                    <span class="text-2xl transform -translate-x-2 translate-y-2 text-white font-bold">😢</span>
+                </div>
+                <div onclick="setMood('green')" class="mood-quadrant absolute bottom-0 right-0 w-32 h-32 bg-green-400 rounded-br-full flex items-center justify-center cursor-pointer border-l-2 border-t-2 border-white/20 shadow-sm hover:bg-green-500">
+                    <span class="text-2xl transform translate-x-2 translate-y-2 text-white font-bold">😌</span>
+                </div>
+                
+                <!-- Avatar Center -->
+                <div id="moodAvatar" class="absolute top-1/2 left-1/2 w-16 h-16 bg-white rounded-full shadow-lg transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-3xl border-4 border-white transition-all duration-300 pointer-events-none z-10">
+                    😀
+                </div>
+            </div>
+
+            <!-- Feedback Area -->
+            <div id="moodFeedback" class="bg-white p-6 rounded-2xl shadow-lg text-center hidden">
+                <h3 id="moodTitle" class="text-xl font-bold mb-2">Feeling...</h3>
+                <p id="moodText" class="text-gray-600 mb-4 text-sm font-bold">All emotions are amazing and perfect!</p>
+                
+                <div class="bg-gray-50 p-3 rounded-lg text-sm text-gray-700 italic mb-4 border-l-4 border-[var(--bg-primary)]">
+                    <i class="fas fa-lightbulb text-yellow-500 mr-2"></i><span id="moodTip">Tip goes here.</span>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="startBreathing()" class="w-full bg-blue-100 text-blue-600 py-3 rounded-xl font-bold hover:bg-blue-200 transition btn-bounce">
+                        <i class="fas fa-wind mr-2"></i> Take a Breath
+                    </button>
+                    <button onclick="showScreen('screen-map')" class="w-full bg-green-100 text-green-600 py-3 rounded-xl font-bold hover:bg-green-200 transition btn-bounce">
+                        <i class="fas fa-gamepad mr-2"></i> Play Games
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BREATHING OVERLAY -->
+        <div id="breathingOverlay" class="fixed inset-0 bg-blue-500/95 z-[100] hidden flex flex-col items-center justify-center text-white">
+            <h2 class="text-3xl font-bold mb-8">Relax...</h2>
+            <div class="relative w-64 h-64 flex items-center justify-center">
+                <div class="breathing-circle w-32 h-32 bg-white rounded-full opacity-50 absolute"></div>
+                <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center text-blue-500 text-4xl shadow-lg relative z-10">
+                    <i class="fas fa-lungs"></i>
+                </div>
+            </div>
+            <p class="mt-8 text-xl font-light animate-pulse">Inhale... Hold... Exhale...</p>
+            <button onclick="stopBreathing()" class="mt-12 border-2 border-white text-white px-6 py-2 rounded-full font-bold hover:bg-white hover:text-blue-500 transition">I feel better</button>
+        </div>
+
+        <!-- SCREEN: QUIZ -->
+        <div id="screen-quiz" class="screen">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="quitLevel()" class="text-gray-400 font-bold text-sm"><i class="fas fa-times"></i> Quit</button>
+                <div class="text-sm font-bold text-[var(--bg-primary)]" id="levelProgress">1/5</div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-2xl shadow-md border-b-4 border-gray-200 mb-6 relative">
+                <button onclick="repeatTTS()" class="absolute top-2 right-2 text-gray-300 hover:text-[var(--bg-primary)]"><i class="fas fa-volume-up"></i></button>
+                <div id="questionTag" class="text-[10px] font-bold text-[var(--bg-primary)] uppercase tracking-wide mb-1">Topic</div>
+                <h2 id="questionText" class="text-xl font-bold text-gray-800 leading-relaxed">Loading...</h2>
+            </div>
+            
+            <!-- Dynamic Content Area -->
+            <div id="quizContent" class="space-y-4"></div>
+        </div>
+
+        <!-- SCREEN: BATTLE MODE -->
+        <div id="screen-battle" class="screen">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="showScreen('screen-map')" class="text-gray-400"><i class="fas fa-arrow-left"></i> Back</button>
+                <span class="font-bold text-purple-600">Conversation Battle</span>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-lg min-h-[300px] flex flex-col">
+                <div id="battleLog" class="flex-1 space-y-3 mb-4 overflow-y-auto max-h-[400px]"></div>
+                <div id="battleOptions" class="grid grid-cols-1 gap-2"></div>
+            </div>
+        </div>
+
+        <!-- SCREEN: MINI GAME (Focus Hero) -->
+        <div id="screen-eye-game" class="screen">
+            <div class="text-center mb-4">
+                <h2 class="text-2xl font-bold text-teal-600">Focus Hero</h2>
+                <p class="text-sm text-gray-500">Keep the slider aligned with the eyes!</p>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg relative h-[300px] flex flex-col items-center justify-center overflow-hidden">
+                <!-- Focus Bar -->
+                <div class="absolute top-4 left-4 right-4 h-4 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
+                    <div id="focus-bar" class="h-full bg-teal-500 w-1/2"></div>
+                </div>
+                
+                <!-- Game Area -->
+                <div class="w-full h-12 bg-gray-100 rounded-full relative mt-8 border-2 border-gray-300">
+                    <!-- The Target (Eyes) -->
+                    <div id="eyeTarget" class="absolute top-0 h-12 w-12 flex items-center justify-center text-3xl transition-transform duration-75">👀</div>
+                    <!-- The Player (Frame) -->
+                    <div id="playerFrame" class="absolute top-0 h-12 w-16 border-4 border-teal-500 rounded-xl pointer-events-none transform -translate-x-1/2 left-0 box-border"></div>
+                </div>
+
+                <!-- Controls -->
+                <input type="range" id="eyeSlider" min="0" max="100" value="50" class="mt-10 w-full">
+                
+                <div id="eyeGameOverlay" class="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-10">
+                    <button onclick="initEyeGame()" class="bg-teal-500 text-white px-8 py-3 rounded-xl font-bold text-xl shadow-lg btn-bounce">Start Focus</button>
+                </div>
+            </div>
+            <button onclick="showScreen('screen-map')" class="mt-6 w-full text-gray-400 font-bold">Exit</button>
+        </div>
+
+        <!-- SCREEN: LIBRARY/SHOP/DIARY -->
+        <div id="screen-shop" class="screen">
+            <h2 class="text-2xl font-bold text-center mb-2 text-orange-500">Shop</h2>
+             <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-white p-3 rounded-xl shadow-sm border text-center">
+                    <div class="font-bold text-sm">50/50</div>
+                    <button onclick="buyItem('5050', 50)" class="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full font-bold text-xs w-full mt-1">50 🪙</button>
+                </div>
+                 <div class="bg-white p-3 rounded-xl shadow-sm border text-center">
+                    <div class="font-bold text-sm">Free Hit</div>
+                    <button onclick="buyItem('freehit', 100)" class="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full font-bold text-xs w-full mt-1">100 🪙</button>
+                </div>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border mb-3 flex justify-between items-center">
+                <div class="font-bold text-gray-700">Extra Life ❤️</div>
+                <button onclick="buyItem('life', 200)" class="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-lg font-bold text-sm">200 🪙</button>
+            </div>
+            <div id="shopPeopleContainer" class="space-y-3 mt-4"></div>
+        </div>
+
+        <div id="screen-diary" class="screen">
+            <h2 class="text-2xl font-bold text-center mb-4 text-purple-600">My Missions</h2>
+            <div id="diaryEntries" class="space-y-4"></div>
+        </div>
+
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around items-center h-16 pb-safe z-40">
+        <button onclick="showScreen('screen-map')" class="nav-btn text-[var(--bg-primary)] flex flex-col items-center w-full"><i class="fas fa-map text-xl mb-1"></i><span class="text-[10px]">Map</span></button>
+        <!-- MOOD BUTTON -->
+        <button onclick="showScreen('screen-mood')" class="nav-btn text-gray-400 flex flex-col items-center w-full hover:text-[var(--bg-primary)]"><i class="fas fa-smile text-xl mb-1"></i><span class="text-[10px]">Mood</span></button>
+        
+        <button onclick="showScreen('screen-diary')" class="nav-btn text-gray-400 flex flex-col items-center w-full hover:text-[var(--bg-primary)]"><i class="fas fa-book-journal-whills text-xl mb-1"></i><span class="text-[10px]">Missions</span></button>
+        <button onclick="showScreen('screen-shop')" class="nav-btn text-gray-400 flex flex-col items-center w-full hover:text-[var(--bg-primary)]"><i class="fas fa-store text-xl mb-1"></i><span class="text-[10px]">Shop</span></button>
+    </div>
+
+    <!-- MODALS -->
+    
+    <!-- PARENT MODE MODAL -->
+    <div id="parentModal" class="fixed inset-0 bg-black/90 z-[90] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6">
+            <h3 class="font-bold text-xl mb-2 text-gray-800">Parent/Teacher Mode</h3>
+            <p class="text-xs text-gray-500 mb-4">Add a real-world mission for the player.</p>
+            <input type="text" id="parentMissionInput" placeholder="e.g. Say hello to the bus driver" class="w-full border p-2 rounded-lg mb-4">
+            <div class="flex gap-2">
+                <button onclick="addParentMission()" class="flex-1 bg-green-500 text-white py-2 rounded-lg font-bold">Add Mission</button>
+                <button onclick="document.getElementById('parentModal').classList.add('hidden')" class="flex-1 bg-gray-200 text-gray-600 py-2 rounded-lg">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEEDBACK MODAL -->
+    <div id="feedbackModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl text-center">
+            <div id="feedbackIcon" class="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg"></div>
+            <h3 id="feedbackTitle" class="text-2xl font-bold mb-2">Title</h3>
+            <p id="feedbackText" class="text-gray-600 mb-4">Explanation.</p>
+            <div class="bg-gray-50 p-3 rounded-lg text-sm text-gray-500 italic mb-6 border-l-4 border-gray-300"><i class="fas fa-lightbulb text-yellow-500 mr-2"></i><span id="feedbackContext">Context.</span></div>
+            <button onclick="nextQuestion()" class="w-full bg-[var(--bg-primary)] text-white py-3 rounded-xl font-bold text-lg shadow-lg btn-bounce">Continue</button>
+        </div>
+    </div>
+
+    <!-- FRIEND EVENT MODAL -->
+    <div id="friendEventModal" class="fixed inset-0 bg-black/80 z-[80] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
+            <div class="w-16 h-16 bg-blue-100 rounded-full mx-auto flex items-center justify-center text-3xl mb-4">🤝</div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Friend Needs Help!</h3>
+            <p id="friendEventText" class="text-gray-600 text-sm mb-6"></p>
+            <div class="flex gap-3">
+                <button onclick="closeFriendEvent()" class="flex-1 bg-gray-200 text-gray-600 py-3 rounded-xl font-bold">No</button>
+                <button onclick="acceptFriendLoan()" class="flex-1 bg-blue-500 text-white py-3 rounded-xl font-bold shadow-lg">Yes!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- SOUND & TTS MANAGER --- */
+        const sfx = {
+            ctx: new (window.AudioContext || window.webkitAudioContext)(),
+            play(type) {
+                if(this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                const now = this.ctx.currentTime;
+                if(type === 'correct') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(500, now); osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if(type === 'wrong') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if(type === 'click') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now); osc.stop(now + 0.05);
+                }
+            }
+        };
+
+        let ttsEnabled = false;
+        function toggleTTS() {
+            ttsEnabled = !ttsEnabled;
+            document.getElementById('ttsBtn').innerHTML = ttsEnabled ? '<i class="fas fa-volume-up text-blue-500 text-lg"></i>' : '<i class="fas fa-volume-mute text-lg"></i>';
+            if(ttsEnabled) speak("Voice on.");
+        }
+        function speak(text) {
+            if(!ttsEnabled) return;
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 0.9;
+            window.speechSynthesis.speak(u);
+        }
+        function repeatTTS() { 
+            const qText = document.getElementById('questionText').innerText;
+            speak(qText); 
+        }
+
+        /* --- GAME DATA --- */
+        const levels = [
+            { id: 1, title: 'Greetings', icon: 'fa-hand-sparkles', desc: 'Saying hello and goodbye.' },
+            { id: 2, title: 'Conversation', icon: 'fa-comments', desc: 'Taking turns and listening.' },
+            { id: 3, title: 'Personal Space', icon: 'fa-user-shield', desc: 'Keeping comfortable distances.' },
+            { id: 4, title: 'Eating', icon: 'fa-utensils', desc: 'Table manners and sharing.' },
+            { id: 5, title: 'Safety & Public', icon: 'fa-traffic-light', desc: 'Strangers, secrets, and public places.' },
+            { id: 6, title: 'Classroom', icon: 'fa-chalkboard-user', desc: 'Rules for school and learning.' }
+        ];
+
+        // --- QUESTION GENERATOR ---
+        // Types: 'choice' (default), 'slider', 'face'
+        
+        let qTemplates = [
+             // LEVEL 1: GREETINGS
+            { lvl:1, type:'choice', q:"Teacher at store", ans:2, opts:["Hide","Hug","Smile/Wave","Stare"], why:"Acknowledge them politely.", ctx:"Teachers have lives too!" },
+            { lvl:1, type:'choice', q:"Door held open", ans:1, opts:["Ignore","Say Thanks","Complaint","Dance"], why:"Acknowledge kindness.", ctx:"Gratitude is social glue." },
+            { lvl:1, type:'slider', q:"How loud should you say 'Hello' in a library?", target: 10, range: 20, why:"Keep it very quiet.", ctx:"Libraries are for reading." },
+            { lvl:1, type:'face', q:"Which face looks happy to see you?", ans:0, opts:["😊","😠","😒","😨"], why:"Smiling eyes and mouth usually mean happy.", ctx:"Look at the mouth corners." },
+            { lvl:1, type:'choice', q:"New neighbor", ans:2, opts:["Spy","Bark","Smile/Hello","Throw rock"], why:"Build community trust.", ctx:"First impressions matter." },
+            
+            // LEVEL 2: CONVERSATION
+            { lvl:2, type:'choice', q:"Friend talking boringly", ans:1, opts:["Interrupt","Listen/Pivot","Sleep","Walk away"], why:"Reciprocal listening.", ctx:"Wait for a pause." },
+            { lvl:2, type:'slider', q:"How much should you talk vs listen?", target: 50, range: 15, why:"Aim for 50/50 balance.", ctx:"It's like a tennis match." },
+            { lvl:2, type:'face', q:"Which face is bored?", ans:2, opts:["😁","😡","🥱","😭"], why:"Yawning or looking away means bored.", ctx:"Time to change the topic." },
+            { lvl:2, type:'choice', q:"Topic is uncomfortable", ans:0, opts:["Change topic","Scream","Endure","Run"], why:"Set boundaries.", ctx:"'Can we talk about X?'" },
+            { lvl:2, type:'choice', q:"Ending a chat", ans:0, opts:["'Gotta run, bye!'","Walk away","Stare","Sleep"], why:"Closing ritual.", ctx:"Signal the end." },
+
+            // LEVEL 3: PERSONAL SPACE
+            { lvl:3, type:'choice', q:"Hug consent", ans:1, opts:["Tackle","Ask first","Grab","Sneak"], why:"Bodily autonomy.", ctx:"Ask every time." },
+            { lvl:3, type:'slider', q:"Distance when standing in line (0=Touching, 100=Far)", target: 30, range: 15, why:"Arm's length is usually best.", ctx:"Don't breathe on them." },
+            { lvl:3, type:'choice', q:"Empty bus seat", ans:0, opts:["Sit alone","Sit next to stranger","Sit on floor","Stand"], why:"Maximize space.", ctx:"Don't crowd if empty." },
+            { lvl:3, type:'face', q:"Which face says 'You are too close'?", ans:1, opts:["😊","😣","😴","😍"], why:"Pulling back or grimacing means back off.", ctx:"Read the discomfort." },
+            { lvl:3, type:'choice', q:"Someone bumps you", ans:0, opts:["'No worries'","Push back","Scream","Fall"], why:"Accidents happen.", ctx:"De-escalate." },
+
+            // LEVEL 4: EATING
+            { lvl:4, type:'choice', q:"Dislike food", ans:1, opts:["'Yuck'","'No thanks'","Spit","Throw"], why:"Host feelings.", ctx:"Polite refusal." },
+            { lvl:4, type:'slider', q:"How fast should you eat? (0=Turtle, 100=Vacuum)", target: 40, range: 20, why:"Pace yourself with others.", ctx:"Don't finish first by 10 minutes." },
+            { lvl:4, type:'choice', q:"Need to burp", ans:1, opts:["Loudly","Quietly + 'Excuse me'","On sibling","Hold forever"], why:"Body noises.", ctx:"Minimize impact." },
+            { lvl:4, type:'face', q:"Which face says 'That smells bad'?", ans:3, opts:["😋","😐","😮","🤢"], why:"Scrunched nose means disgust.", ctx:"Don't say it out loud." },
+            { lvl:4, type:'choice', q:"Chewing", ans:0, opts:["Mouth closed","Mouth open","Loudly","Singing"], why:"Visual/Audio grossness.", ctx:"Nobody wants to see that." },
+
+            // LEVEL 5: SAFETY & PUBLIC (New Content)
+            { lvl:5, type:'choice', q:"Stranger offers candy", ans:2, opts:["Take it","Say thanks","Say No & Run","Eat it"], why:"Never take food from strangers.", ctx:"Tell a safe adult immediately." },
+            { lvl:5, type:'choice', q:"Leaving the house", ans:0, opts:["Tell parent where","Just leave","Sneak out","Hide"], why:"Safety rule.", ctx:"Parents need to know you are safe." },
+            { lvl:5, type:'choice', q:"Keeping secrets", ans:1, opts:["Keep all secrets","No secrets from parents","Tell strangers","Post online"], why:"Safe adults should know everything.", ctx:"Surprises are okay, secrets are not." },
+            { lvl:5, type:'slider', q:"How much info do you give a stranger?", target: 0, range: 5, why:"Zero personal info.", ctx:"Name, address, school = private." },
+            { lvl:5, type:'choice', q:"Feeling angry technique", ans:1, opts:["Hit wall","Blow on thumb","Scream","Throw things"], why:"Blowing on thumb calms the vagus nerve.", ctx:"Count to 10 helps too." },
+            { lvl:5, type:'face', q:"Which face is a safe stranger (Police/Fire)?", ans:0, opts:["👮","🦹","👹","👽"], why:"Uniforms usually mean help.", ctx:"Look for badges or nametags." },
+
+            // LEVEL 6: CLASSROOM
+            { lvl:6, type:'choice', q:"Teacher is talking", ans:1, opts:["Talk to friend","Listen/Quiet","Sleep","Sing"], why:"Respect authority.", ctx:"Listen to learn." },
+            { lvl:6, type:'choice', q:"Overwhelmed in class", ans:0, opts:["Ask for break","Flip desk","Run out","Scream"], why:"Self-regulation.", ctx:"'I need a minute' is okay." },
+            { lvl:6, type:'slider', q:"Hand raising height", target: 90, range: 20, why:"High and straight implies confidence.", ctx:"Don't wave it wildly." },
+            { lvl:6, type:'face', q:"Which face shows 'I am confused'?", ans:2, opts:["😄","😡","😕","😴"], why:"Eyebrows together means thinking hard.", ctx:"Teachers look for this face." },
+            { lvl:6, type:'choice', q:"Forgot homework", ans:1, opts:["Lie","Tell truth","Cry","Copy friend"], why:"Responsibility.", ctx:"Own your mistake." }
+        ];
+        
+        // Populate bank - Ensure we have enough Qs (Generating extras for demo)
+        for(let i=0; i<10; i++) {
+            qTemplates.push({lvl:5, type:'choice', q:`Safety Check #${i}`, ans:0, opts:["Safe Choice","Unsafe","Risky","Bad"], why:"Safety first.", ctx:"Check with adult."});
+        }
+        
+        let questionBank = qTemplates.map((t, i) => ({ id: 1000+i, ...t }));
+        
+        // Battle Scenarios
+        const battleScenarios = [
+            {
+                npc: "Grandma",
+                lines: [
+                    { say: "Here is a knitted sweater!", options: ["It's ugly.", "I love it, thanks!", "I wanted a toy."], correct: 1, reply: "I'm so glad you like it dear." },
+                    { say: "It might be a bit itchy.", options: ["I won't wear it.", "That's okay, I'll wear a shirt under it.", "Burn it."], correct: 1, reply: "Smart idea!" },
+                    { say: "Give Grandma a hug?", options: ["No.", "Yes (if you want)", "Run away"], correct: 1, reply: "Aww, lovely." }
+                ]
+            }
+        ];
+
+        /* --- STATE --- */
+        let state = {
+            username: "",
+            avatar: "😀",
+            coins: 100, gems: 0, lives: 3, streak: 0,
+            lastLogin: null, lastDailyGift: null,
+            maxLevel: 1, levelProgress: {}, levelWins: {},
+            inventory: { '5050': 1, 'freehit': 0 },
+            activeLoan: null,
+            diary: []
+        };
+        
+        let currentLoanOffer = null;
+
+        /* --- SETUP --- */
+        function init() {
+            const saved = localStorage.getItem('sociocoolState');
+            if (saved) {
+                state = { ...state, ...JSON.parse(saved) };
+                if(state.username) showScreen('screen-map');
+                else showScreen('screen-setup');
+            } else {
+                showScreen('screen-setup');
+            }
+            updateHUD();
+            applyTheme('theme-blue');
+        }
+
+        function setAvatar(emoji) { 
+            state.avatar = emoji; 
+            document.getElementById('avatarPreview').innerText = emoji; 
+            // Update mood avatar too
+            document.getElementById('moodAvatar').innerText = emoji;
+            sfx.play('click'); 
+        }
+        function finishSetup() {
+            const name = document.getElementById('usernameInput').value;
+            if(!name) return alert("Enter a name!");
+            state.username = name;
+            saveState();
+            showScreen('screen-map');
+        }
+
+        function saveState() { localStorage.setItem('sociocoolState', JSON.stringify(state)); updateHUD(); }
+        function updateHUD() {
+            document.getElementById('livesDisplay').innerText = state.lives;
+            document.getElementById('coinsDisplay').innerText = state.coins;
+            document.getElementById('gemsDisplay').innerText = state.gems;
+            document.getElementById('streakDisplay').innerText = state.streak;
+            document.getElementById('userAvatarDisplay').innerText = state.avatar;
+            document.getElementById('moodAvatar').innerText = state.avatar; // Ensure mood avatar is sync
+            document.getElementById('welcomeText').innerText = `Hi, ${state.username}!`;
+            
+            // Mini game lock
+            if(state.maxLevel >= 3) {
+                document.getElementById('lockMiniGame').classList.add('hidden');
+                document.getElementById('btnMiniGame').onclick = startMiniGame;
+                document.getElementById('btnMiniGame').classList.remove('opacity-50');
+            } else {
+                document.getElementById('lockMiniGame').classList.remove('hidden');
+                document.getElementById('btnMiniGame').onclick = () => alert("Unlock at Level 3!");
+                document.getElementById('btnMiniGame').classList.add('opacity-50');
+            }
+        }
+
+        /* --- MAP & NAVIGATION --- */
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            
+            if(id === 'screen-map') { renderMap(); checkFriendEvent(); }
+            if(id === 'screen-diary') renderDiary();
+            if(id === 'screen-shop') renderShop();
+            
+            sfx.play('click');
+        }
+        
+        function toggleMenu() { 
+            const parent = confirm("Enter Parent/Teacher Mode?");
+            if(parent) document.getElementById('parentModal').classList.remove('hidden');
+        }
+
+        /* --- QUIZ ENGINE --- */
+        let currentLevelId = 0;
+        let currentQuestions = [];
+        let qIndex = 0;
+        let roundScore = 0;
+
+        function startLevel(id) {
+            if(state.lives <= 0) return alert("No lives!");
+            if(id > state.maxLevel) return;
+            currentLevelId = id;
+            
+            // Get questions for level
+            let pool = questionBank.filter(q => q.lvl === id || q.lvl === 'all');
+            currentQuestions = pool.sort(() => 0.5 - Math.random()).slice(0, 5); // 5 random questions
+            qIndex = 0;
+            roundScore = 0;
+            showScreen('screen-quiz');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = currentQuestions[qIndex];
+            document.getElementById('levelProgress').innerText = `Q ${qIndex+1}/5`;
+            document.getElementById('questionText').innerText = q.q;
+            document.getElementById('questionTag').innerText = levels.find(l=>l.id===q.lvl)?.title || "General";
+            
+            const container = document.getElementById('quizContent');
+            container.innerHTML = '';
+            
+            if(ttsEnabled) speak(q.q);
+
+            if(q.type === 'slider') {
+                container.innerHTML = `
+                    <div class="mt-8 px-4">
+                        <input type="range" id="qSlider" min="0" max="100" value="50" oninput="sfx.play('click')">
+                        <div class="flex justify-between text-xs text-gray-500 mt-2">
+                            <span>Min</span><span>Max</span>
+                        </div>
+                        <button onclick="submitSlider(${q.target}, ${q.range})" class="w-full bg-[var(--bg-primary)] text-white py-3 rounded-xl mt-6 font-bold shadow-md btn-bounce">Submit</button>
+                    </div>
+                `;
+            } else if (q.type === 'face') {
+                 container.className = "grid grid-cols-2 gap-4";
+                 q.opts.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = "text-6xl p-4 bg-white rounded-xl shadow-md border-2 border-gray-100 hover:border-blue-300 btn-bounce";
+                    btn.innerText = opt;
+                    btn.onclick = () => handleAnswer(idx);
+                    container.appendChild(btn);
+                 });
+            } else {
+                // Choice
+                container.className = "space-y-3";
+                q.opts.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-4 rounded-xl border-2 border-gray-100 bg-white hover:bg-gray-50 font-semibold text-gray-700 transition btn-bounce";
+                    btn.innerText = opt;
+                    btn.onclick = () => handleAnswer(idx);
+                    container.appendChild(btn);
+                });
+            }
+        }
+
+        function submitSlider(target, range) {
+            const val = parseInt(document.getElementById('qSlider').value);
+            const diff = Math.abs(val - target);
+            if(diff <= range) handleAnswer(null, true); // Pass
+            else handleAnswer(null, false); // Fail
+        }
+
+        function handleAnswer(idx, isSliderPass) {
+            const q = currentQuestions[qIndex];
+            let isCorrect = false;
+            
+            if(q.type === 'slider') isCorrect = isSliderPass;
+            else isCorrect = (idx === q.ans);
+
+            if(isCorrect) {
+                sfx.play('correct');
+                state.coins += 10;
+                roundScore++;
+                // Add to diary
+                if(!state.diary.find(d => d.id === q.id)) state.diary.push({id: q.id, text: q.q, applied: false});
+                showFeedback(true, q);
+            } else {
+                sfx.play('wrong');
+                state.lives--;
+                showFeedback(false, q);
+            }
+            saveState();
+        }
+
+        function showFeedback(correct, q) {
+            const modal = document.getElementById('feedbackModal');
+            const icon = document.getElementById('feedbackIcon');
+            const title = document.getElementById('feedbackTitle');
+            
+            if(correct) {
+                icon.innerHTML = '👍'; icon.className = "w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg bg-green-100";
+                title.innerText = "Sociocool!"; title.className = "text-2xl font-bold mb-2 text-green-600";
+            } else {
+                icon.innerHTML = '👎'; icon.className = "w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg bg-red-100";
+                title.innerText = "Not quite..."; title.className = "text-2xl font-bold mb-2 text-red-600";
+            }
+            
+            document.getElementById('feedbackText').innerText = q.why;
+            document.getElementById('feedbackContext').innerText = q.ctx;
+            if(ttsEnabled) speak(correct ? "Correct. " + q.why : "Oops. " + q.why);
+            
+            modal.classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            document.getElementById('feedbackModal').classList.add('hidden');
+            if(state.lives <= 0) { showScreen('screen-map'); return; }
+            qIndex++;
+            if(qIndex < 5) renderQuestion();
+            else finishLevel();
+        }
+        
+        function finishLevel() {
+            if(roundScore >= 3) {
+                // Unlock logic
+                if(!state.levelWins[currentLevelId]) state.levelWins[currentLevelId] = 0;
+                state.levelWins[currentLevelId]++;
+                
+                // Unlock next level logic
+                if(!state.levelProgress[currentLevelId]) state.levelProgress[currentLevelId] = 0;
+                state.levelProgress[currentLevelId] += roundScore; // Add score to progress
+                
+                if(state.levelProgress[currentLevelId] >= 10 && currentLevelId === state.maxLevel && state.maxLevel < 6) {
+                    state.maxLevel++;
+                    alert("Level Unlocked!");
+                }
+                
+                state.coins += roundScore * 5;
+                alert(`Level Complete! +${roundScore*5} Coins`);
+            } else {
+                alert("Try again!");
+            }
+            saveState();
+            showScreen('screen-map');
+        }
+        
+        function quitLevel() { if(confirm("Quit?")) showScreen('screen-map'); }
+
+        /* --- BATTLE MODE --- */
+        let battleIdx = 0;
+        let battleScore = 0;
+        
+        function startBattle() {
+            showScreen('screen-battle');
+            const scenario = battleScenarios[0]; // Just 1 for demo
+            document.getElementById('battleLog').innerHTML = '';
+            battleIdx = 0;
+            battleScore = 0;
+            battleStep(scenario);
+        }
+
+        function battleStep(scenario) {
+            if(battleIdx >= scenario.lines.length) {
+                state.gems += 20;
+                alert("Battle Won! +20 Gems 💎");
+                saveState();
+                showScreen('screen-map');
+                return;
+            }
+
+            const line = scenario.lines[battleIdx];
+            const log = document.getElementById('battleLog');
+            
+            // NPC Speaks
+            log.innerHTML += `<div class="bg-gray-100 p-3 rounded-lg self-start w-3/4 mb-2"><strong>${scenario.npc}:</strong> ${line.say}</div>`;
+            if(ttsEnabled) speak(line.say);
+
+            // Options
+            const optsDiv = document.getElementById('battleOptions');
+            optsDiv.innerHTML = '';
+            line.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "bg-purple-100 text-purple-700 p-3 rounded-lg font-bold hover:bg-purple-200 text-left";
+                btn.innerText = opt;
+                btn.onclick = () => {
+                    // Player speaks
+                    log.innerHTML += `<div class="bg-purple-500 text-white p-3 rounded-lg self-end ml-auto w-3/4 mb-2 text-right"><strong>You:</strong> ${opt}</div>`;
+                    
+                    if(idx === line.correct) {
+                        log.innerHTML += `<div class="text-center text-xs text-green-500 font-bold mb-4">Good Choice!</div>`;
+                        battleIdx++;
+                        setTimeout(() => battleStep(scenario), 1000);
+                    } else {
+                        log.innerHTML += `<div class="text-center text-xs text-red-500 font-bold mb-4">Awkward...</div>`;
+                        alert("Battle Lost! Try again.");
+                        showScreen('screen-map');
+                    }
+                };
+                optsDiv.appendChild(btn);
+            });
+        }
+
+        /* --- MINI GAME (FOCUS HERO) --- */
+        let gameLoop;
+        let eyePos = 50;
+        let eyeDir = 1;
+        let focusScore = 50;
+        let gameActive = false;
+
+        function startMiniGame() {
+            showScreen('screen-eye-game');
+            document.getElementById('eyeGameOverlay').classList.remove('hidden');
+            gameActive = false;
+        }
+
+        function initEyeGame() {
+            document.getElementById('eyeGameOverlay').classList.add('hidden');
+            gameActive = true;
+            focusScore = 50;
+            eyePos = 50;
+            eyeDir = 1;
+            runEyeGame();
+        }
+
+        function runEyeGame() {
+            if(!gameActive) return;
+
+            // Move Eye Target
+            eyePos += eyeDir * 0.5; // Speed
+            if(eyePos > 90 || eyePos < 10) eyeDir *= -1;
+            document.getElementById('eyeTarget').style.left = eyePos + '%';
+
+            // Check alignment
+            const sliderVal = parseInt(document.getElementById('eyeSlider').value);
+            document.getElementById('playerFrame').style.left = sliderVal + '%';
+
+            if(Math.abs(sliderVal - eyePos) < 10) {
+                focusScore += 0.5; // Gain focus
+            } else {
+                focusScore -= 0.5; // Lose focus
+            }
+
+            // Update Bar
+            const bar = document.getElementById('focus-bar');
+            bar.style.width = focusScore + '%';
+            if(focusScore > 50) bar.className = "h-full bg-green-500";
+            else if (focusScore > 20) bar.className = "h-full bg-yellow-500";
+            else bar.className = "h-full bg-red-500";
+
+            if(focusScore >= 100) {
+                gameActive = false;
+                alert("Focus Master! +10 Gems 💎");
+                state.gems += 10;
+                saveState();
+                showScreen('screen-map');
+            } else if(focusScore <= 0) {
+                gameActive = false;
+                alert("Lost Focus! Try again.");
+                document.getElementById('eyeGameOverlay').classList.remove('hidden');
+            } else {
+                requestAnimationFrame(runEyeGame);
+            }
+        }
+
+        /* --- DIARY & PARENT --- */
+        function renderDiary() {
+            const container = document.getElementById('diaryEntries');
+            container.innerHTML = '';
+            // Generic missions
+            const missions = [
+                {id: 'm1', text: "Say good morning to a teacher"},
+                {id: 'm2', text: "Ask someone about their day"},
+            ];
+            
+            // Combine with saved Qs and Parent missions
+            const allItems = [...missions, ...state.diary];
+            
+            allItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "bg-white p-4 rounded-xl shadow-sm border-l-4 border-purple-400 flex justify-between items-center";
+                div.innerHTML = `<div><div class="text-xs text-gray-400 font-bold uppercase">Mission</div><div class="font-bold">${item.text}</div></div>`;
+                
+                const btn = document.createElement('button');
+                if(item.applied) {
+                    btn.className = "text-green-500 font-bold text-sm";
+                    btn.innerHTML = '<i class="fas fa-check"></i> Done';
+                } else {
+                    btn.className = "bg-purple-100 text-purple-600 px-3 py-1 rounded-full font-bold text-xs";
+                    btn.innerText = "I did it!";
+                    btn.onclick = () => {
+                        item.applied = true;
+                        state.gems += 5;
+                        createConfetti();
+                        sfx.play('correct');
+                        saveState();
+                        renderDiary();
+                    };
+                }
+                div.appendChild(btn);
+                container.appendChild(div);
+            });
+        }
+
+        function addParentMission() {
+            const txt = document.getElementById('parentMissionInput').value;
+            if(txt) {
+                state.diary.unshift({id: Date.now(), text: txt, applied: false});
+                saveState();
+                alert("Mission Added!");
+                document.getElementById('parentModal').classList.add('hidden');
+            }
+        }
+
+        /* --- MAP & FRIEND LOGIC (Keep from previous) --- */
+        function checkFriendEvent() {
+            if (state.activeLoan) return;
+            if (Math.random() > 0.3) return; 
+            const type = Math.random() > 0.5 ? 'coins' : 'gems';
+            const amount = type === 'coins' ? 20 : 10;
+            currentLoanOffer = { type, amount };
+            document.getElementById('friendEventText').innerHTML = `Can I borrow <strong>${amount} ${type==='coins'?'🪙':'💎'}</strong>? I'll pay double tomorrow!`;
+            document.getElementById('friendEventModal').classList.remove('hidden');
+        }
+        function acceptFriendLoan() {
+            if(state[currentLoanOffer.type] < currentLoanOffer.amount) return alert("Not enough funds!");
+            state[currentLoanOffer.type] -= currentLoanOffer.amount;
+            const d = new Date(); d.setDate(d.getDate() + 1);
+            state.activeLoan = { type: currentLoanOffer.type, amount: currentLoanOffer.amount, dateDue: d.toDateString() };
+            saveState();
+            closeFriendEvent();
+        }
+        function closeFriendEvent() { document.getElementById('friendEventModal').classList.add('hidden'); }
+        function createConfetti() { for(let i=0; i<30; i++) { const c = document.createElement('div'); c.className = 'confetti'; c.style.left = Math.random()*100+'vw'; c.style.backgroundColor=['#f00','#0f0','#00f'][Math.floor(Math.random()*3)]; c.style.animationDuration=(Math.random()*2+1)+'s'; document.body.appendChild(c); setTimeout(()=>c.remove(),3000); }}
+        
+        // Map Render Logic
+        function renderMap() {
+            const mapEl = document.getElementById('levelMap');
+            mapEl.innerHTML = '';
+            levels.forEach((lvl, index) => {
+                const isLocked = lvl.id > state.maxLevel;
+                const node = document.createElement('div');
+                node.className = `level-node w-full bg-white p-4 rounded-2xl shadow-md border-b-4 border-gray-200 cursor-pointer flex items-center gap-4 ${isLocked?'locked':''}`;
+                node.onclick = () => startLevel(lvl.id);
+                node.innerHTML = `<div class="w-12 h-12 rounded-full bg-[var(--bg-primary)] text-white flex items-center justify-center text-xl"><i class="fas ${lvl.icon}"></i></div><div class="flex-1"><div class="font-bold">${lvl.title}</div><div class="text-xs text-gray-500">${lvl.desc}</div></div>`;
+                mapEl.appendChild(node);
+                if(index < levels.length -1) mapEl.innerHTML += `<div class="h-6 w-1 bg-gray-300"></div>`;
+            });
+        }
+        
+        // Shop Logic
+        function renderShop() {
+             const container = document.getElementById('shopPeopleContainer');
+             container.innerHTML = '<div class="text-gray-400 text-center text-sm">More coming soon!</div>';
+        }
+        function buyItem(type, cost) {
+            if(state.coins >= cost) { state.coins -= cost; if(type==='life') state.lives++; else state.inventory[type]++; saveState(); alert("Bought!"); } else alert("Need Coins!");
+        }
+
+        /* --- MOOD & BREATHING LOGIC --- */
+        function setMood(zone) {
+            const avatar = document.getElementById('moodAvatar');
+            const feedback = document.getElementById('moodFeedback');
+            const tips = {
+                'red': { 
+                    t: 'Feeling Angry/Anxious', 
+                    m: 'This emotion is valid and important. Feel it fully!', 
+                    tip: 'If you want to change how you feel later: Blow on your thumb for 30s.' 
+                },
+                'blue': { 
+                    t: 'Feeling Sad/Tired', 
+                    m: 'It is perfect to feel this way. Embrace it.', 
+                    tip: 'When you are ready for a change: Drink water or ask for a hug.' 
+                },
+                'yellow': { 
+                    t: 'Feeling Hyper/Silly', 
+                    m: 'Your energy is amazing and acceptable!', 
+                    tip: 'If you want to focus your energy: Do 10 jumping jacks.' 
+                },
+                'green': { 
+                    t: 'Feeling Calm/Happy', 
+                    m: 'This feeling is wonderful. Enjoy it!', 
+                    tip: 'Share your smile with a friend.' 
+                }
+            };
+            
+            // Move avatar visual (simple positioning for now)
+            let x = 0, y = 0;
+            if(zone === 'red') { x = -50; y = -50; }
+            if(zone === 'yellow') { x = 50; y = -50; }
+            if(zone === 'blue') { x = -50; y = 50; }
+            if(zone === 'green') { x = 50; y = 50; }
+            
+            avatar.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+            
+            // Show Feedback
+            const info = tips[zone];
+            document.getElementById('moodTitle').innerText = info.t;
+            document.getElementById('moodText').innerText = info.m;
+            document.getElementById('moodTip').innerText = info.tip;
+            feedback.classList.remove('hidden');
+            
+            sfx.play('click');
+        }
+
+        function startBreathing() {
+            document.getElementById('breathingOverlay').classList.remove('hidden');
+        }
+        function stopBreathing() {
+            document.getElementById('breathingOverlay').classList.add('hidden');
+        }
+
+        // Init
+        window.onload = init;
+
+    </script>
+</body>
+</html>
+
+
